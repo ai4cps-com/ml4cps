@@ -12,13 +12,13 @@ The code was developed for several research publications ([bibtex](cite.bib)).
 ## Simple example
 
 ```python
-import automata4cps as at
+import ml4cps as at
 
 A = at.Automaton()
 A.add_states_from(["s1", "s2", "s3"])
 A.add_transitions_from([("s1", "s2", "e1"),
-                  ("s2", "s3", "e1"),
-                  ("s3", "s1", "e2")])
+                        ("s2", "s3", "e1"),
+                        ("s3", "s1", "e2")])
 
 print(A)
 A.view_plotly().show()
@@ -51,7 +51,7 @@ E.g.
 
 ```python
 
-from automata4cps import examples
+from ml4cps import examples
 
 discrete_data, timestamp_col, discrete_vars = examples.conveyor_system_sfowl("discrete")
 ```
