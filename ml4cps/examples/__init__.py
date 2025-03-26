@@ -4,4 +4,4 @@
     Description: The module provides example systems and datasets.
 """
 
-from automata4cps.examples.examples import *
+from ml4cps.examples.examples import *

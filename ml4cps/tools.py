@@ -1,36 +1,50 @@
 """
     Various methods to transform data.
 """
+import warnings
 
 import pandas as pd
 import numpy as np
+from sklearn.exceptions import UndefinedMetricWarning
 from sklearn.metrics import precision_score
-import torch
-from datetime import datetime
-import dash_cytoscape as cyto
+try:
+    import torch
+except:
+    warnings.warn("Torch not installed")
 import pprint
 
 
-def standardize(self, x, fit=False):
+def vec2str(discrete_data):
+    if type(discrete_data) is list:
+        return [vec2str(d) for d in discrete_data]
+    else:
+        discrete_data = discrete_data.round(0).astype("Int64").astype(str)
+        discrete_data = discrete_data.agg(','.join, axis=1).to_numpy()
+    return discrete_data
+
+
+def standardize(x, mean=None, std=None):
     if type(x) is list:
-        if fit:
+        if mean is None or std is None:
             all_x = torch.vstack(x)
-            self._mean = all_x.mean(dim=0)
-            self._std = all_x.std(dim=0)
-
-        return [(xx - self._mean) / self._std for xx in x]
+            mean = all_x.mean(dim=0)
+            std = all_x.std(dim=0)
+            return [(xx - mean) / std for xx in x], mean, std
+        else:
+            return [(xx - mean) / std for xx in x]
     else:
-        if fit:
-            self._mean = x.mean(dim=0)
-            self._std = x.std(dim=0)
-        return (x - self._mean) / self._std
+        if mean is None or std is None:
+            mean = x.mean(dim=0)
+            std = x.std(dim=0)
+            return (x - mean) / std, mean, std
+        else:
+            return (x - mean) / std
 
-
-def window(self, x):
+def window(x, window_size, window_step):
     if type(x) is list:
-        return [self._window(xx) for xx in x]
+        return [window(xx, window_size, window_step) for xx in x]
     else:
-        return x.unfold(dimension=0, size=self.window_size, step=self.window_step)
+        return x.unfold(dimension=0, size=window_size, step=window_step)
 
 
 def extend_derivative(signals, use_derivatives=(0, 1)): # Can be torch also
@@ -41,6 +55,8 @@ def extend_derivative(signals, use_derivatives=(0, 1)): # Can be torch also
     else:
         if type(signals) is pd.DataFrame:
             signals = torch.from_numpy(signals.values)
+        elif isinstance(signals, np.ndarray):
+            signals = torch.from_numpy(signals)
 
         new_signals = [signals]
         for ord in range(0, max(use_derivatives)):
@@ -91,6 +107,7 @@ def filter_signals(data, sig_names):
 def create_events_from_signal_vectors(data, sig_names):
     for d in data:
         d.loc[:, "event"] = d[sig_names].diff().apply(lambda x: ' '.join(x.astype(str)).replace(".0", ""), 1)
+        d.loc[0, "event"] = np.nan
         # d.drop(columns=signals)
         # d["dt"] = d[time].diff().shift(-1)
         # new_data.append(d)
@@ -119,7 +136,30 @@ def split_data_on_signal_value(data, sig_name, new_value):
     return new_data
 
 
-def split_train_valid(time, data, other, split):
+def random_split_torch(split, *args):
+    to_return = []
+    train_indices = None
+    val_indices = None
+    for data in args:
+        if train_indices is None or val_indices is None:
+            # Shuffle indices
+            indices = torch.randperm(len(data))
+
+            # Define split point
+            split_point = int(split * len(data))  # 80% for training
+
+            # Split indices
+            train_indices = indices[:split_point]
+            val_indices = indices[split_point:]
+
+        # Create training and validation splits
+        train_data, val_data = data[train_indices], data[val_indices]
+
+        to_return.append(train_data)
+        to_return.append(val_data)
+    return tuple(to_return)
+
+def split_train_valid(time, data, *other, split=0.8):
     # if lists are passed than returns lists, otherwise numpy arrays
     train_other = None
     valid_other = None
@@ -134,22 +174,40 @@ def split_train_valid(time, data, other, split):
         valid_data = data[split_ind:]
 
         if other is not None:
-            train_other = other[:split_ind]
-            valid_other = other[split_ind:]
+            train_other = [o[:split_ind] for o in other]
+            valid_other = [o[split_ind:] for o in other]
     else:
-        split_ind = int(split * data.size(dim=0))
+        split_ind = int(split * data.shape[0])
 
-        train_time = time[:split_ind]
-        valid_time = time[split_ind:]
+        if type(data) is pd.DataFrame:
+            train_time = time.iloc[:split_ind]
+            valid_time = time.iloc[split_ind:]
 
-        train_data = data[:split_ind, :]
-        valid_data = data[split_ind:, :]
+            train_data = data.iloc[:split_ind, :]
+            valid_data = data.iloc[split_ind:, :]
+        else:
+            train_time = time[:split_ind]
+            valid_time = time[split_ind:]
+
+            train_data = data[:split_ind, :]
+            valid_data = data[split_ind:, :]
 
         if other is not None:
-            train_other = other.iloc[:split_ind, :].to_numpy()
-            valid_other = other.iloc[split_ind:, :].to_numpy()
+            train_other = []
+            valid_other = []
+            for o in other:
+                if type(o) is pd.DataFrame:
+                    train_other.append(o.iloc[:split_ind, :])
+                    valid_other.append(o.iloc[split_ind:, :])
+                elif o.ndim == 1:
+                    train_other.append(o[:split_ind])
+                    valid_other.append(o[split_ind:])
+                else:
+                    train_other.append(o[:split_ind, :])
+                    valid_other.append(o[split_ind:, :])
 
-    return train_time, valid_time, train_data, valid_data, train_other, valid_other
+    to_ret = [train_time, valid_time, train_data, valid_data] + [item for pair in zip(train_other, valid_other) for item in pair]
+    return *to_ret,
 
 
 def filter_na_and_constant(data):
@@ -158,6 +216,12 @@ def filter_na_and_constant(data):
                   ~torch.any(data[i].isnan() | data[i].isinf(), dim=0).cpu() & (data[i].std(dim=0) != 0).cpu()]
     return data
 
+
+def df_to_torch_tensor(df):
+    if type(df) is list:
+        return [df_to_torch_tensor(x) for x in df]
+    else:
+        return torch.from_numpy(df.values).float()
 
 def flatten_dict(dict_of_lists):
     return [item for sublist in dict_of_lists.values() for item in sublist]
@@ -194,9 +258,23 @@ def melt_dataframe(df, timestamp=None):
     return result
 
 
+def interpolate(time, state, new_time):
+    df = pd.DataFrame(state).set_index(time)
+    df2 = pd.DataFrame(pd.NA, index=np.asarray(new_time), columns=df.columns)
+    # Extend df1's indices with indices from df2
+    extended_df = df.reindex(index=df.index.union(df2.index))
+    # Fill missing values with forward fill
+    extended_df = extended_df.ffill()
+    return extended_df.loc[df2.index].to_numpy()
+
 def compute_purity(cluster_assignments, class_assignments):
+    if type(cluster_assignments) is pd.DataFrame and cluster_assignments.ndim == 2 and cluster_assignments.shape[1] > 1:
+        cluster_assignments = cluster_assignments.round(0).astype("Int64").astype(str)
+        cluster_assignments = cluster_assignments.agg(''.join, axis=1).to_numpy()
+
+    cluster_assignments = np.asarray(cluster_assignments).reshape(-1)
     num_samples = len(cluster_assignments)
-    valid_values = np.asarray(pd.notna(cluster_assignments) & pd.notna(class_assignments))
+    valid_values = np.asarray(pd.notna(cluster_assignments) & pd.notna(np.asarray(class_assignments).reshape(-1)))
     cluster_assignments = cluster_assignments[valid_values]
     class_assignments = class_assignments[valid_values]
     # cluster_class_counts = confusion_matrix(class_assignments[valid_values], cluster_assignments[valid_values])
@@ -204,7 +282,7 @@ def compute_purity(cluster_assignments, class_assignments):
     cluster_class_counts = {cluster_: {class_: 0 for class_ in np.unique(class_assignments)}
                             for cluster_ in np.unique(cluster_assignments)}
 
-    for cluster_, class_ in zip(cluster_assignments, class_assignments):
+    for cluster_, class_ in zip(cluster_assignments, np.asarray(class_assignments).reshape(-1)):
         cluster_class_counts[cluster_][class_] += 1
 
     total_intersection = sum([max(class_dict.values()) for cluster_, class_dict in cluster_class_counts.items()])
@@ -223,8 +301,13 @@ def composite_f1_score(anom_labels, start_event_idx, true_anom_idx):
     fn = 1 - tp
     # Recall for events (Rec_e): Proportion of true anomalies correctly identified
     rec_e = tp / (tp + fn) if (tp + fn) > 0 else 0
-    # Precision for the entire time series (Prec_t)
-    prec_t = precision_score(true_anomalies, pred_anomalies)
+
+    if not np.any(pred_anomalies):
+        prec_t = 0
+    else:
+        # Precision for the entire time series (Prec_t)
+        prec_t = precision_score(true_anomalies, pred_anomalies)
+
     # Composite F-score
     if prec_t == 0 and rec_e == 0:
         fscore_c = 0
@@ -396,7 +479,7 @@ def generate_random_walk(start_values, steps=100):
 
 
 if __name__ == "__main__":
-    # from automata4cps.examples import examples
+    # from ml4cps.examples import examples
     #
     # data = examples.high_rack_storage_system_sfowl()
     # data = split_data_on_signal_value(data, sig_name="O_w_BRU_Axis_Ctrl", new_value=3)

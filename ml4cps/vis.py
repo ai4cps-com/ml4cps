@@ -6,7 +6,7 @@
     - Tom Westermann, tom.westermann@hsu-hh.de, tom@ai4cps.com
 """
 
-from automata4cps.cps import CPSComponent, CPS
+from ml4cps.cps import CPSComponent, CPS
 from plotly import graph_objects as go
 import pandas as pd
 import datetime
@@ -18,17 +18,18 @@ from plotly.colors import DEFAULT_PLOTLY_COLORS
 from itertools import chain
 import networkx as nx
 import dash_cytoscape as cyto
-from dash import html, Dash
+from dash import html, Dash, dcc, Output, Input
 import dash_bootstrap_components as dbc
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 from plotly.subplots import make_subplots
+import time, webbrowser, threading
 
 
 def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete=False, height=None, plotStates=False,
-              limit_num_points=None, names=None, xaxis_title=None,
-              customdata=None, iterate_colors=True, y_title_font_size=14, opacity=1, vertical_spacing=0.005,
-              sharey=False, bounds=None, plot_only_changes=False, yAxisLabelOffset=False, marker_size=4,
-              showlegend=False, mode='lines+markers', **kwargs):
+                    limit_num_points=None, names=None, xaxis_title=None, customdata=None, iterate_colors=True,
+                    y_title_font_size=14, opacity=1, vertical_spacing=0.005, sharey=False, bounds=None,
+                    plot_only_changes=False, yAxisLabelOffset=False, marker_size=4, showlegend=False,
+                    mode='lines+markers', modedata=None, **kwargs):
     """
     Using plotly library, plots each variable (column) in a collection of dataframe as subplots, one after another.
 
@@ -57,7 +58,7 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
 
     # if no timestamp is in the data
     if timestamp is not None:
-        if type(timestamp) == str or type(timestamp) == int:
+        if type(timestamp) is str or type(timestamp) is int:
             for i in range(len(data)):
                 data[i] = data[i].set_index(timestamp)
 
@@ -69,7 +70,11 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
     else:
         columns = use_columns
 
-    fig = make_subplots(rows=len(columns), cols=1, shared_xaxes=True, vertical_spacing=vertical_spacing,
+    num_rows = len(columns)
+    if modedata is not None:
+        num_rows += 1
+
+    fig = make_subplots(rows=num_rows, cols=1, shared_xaxes=True, vertical_spacing=vertical_spacing,
                         shared_yaxes=sharey)
 
     # select line_shape:
@@ -78,9 +83,35 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
     else:
         lineShape = 'linear'
 
-    # Add traces
-    i = 0
+    if modedata is not None:
+        if not isinstance(modedata, list):
+            modedata = [modedata]
+        k = -1
+        for md in modedata:
+            k += 1
+            if iterate_colors:
+                color = DEFAULT_PLOTLY_COLORS[k % len(DEFAULT_PLOTLY_COLORS)]
+            else:
+                color = DEFAULT_PLOTLY_COLORS[0]
 
+            if names:
+                trace_name = names[k]
+            else:
+                trace_name = str(k)
+
+            if isinstance(md, np.ndarray):
+                md = pd.DataFrame({timestamp: md, 'Mode': np.arange(md.shape[0])})
+            fig.add_trace(go.Scattergl(x=md['Time'], y=md['Mode'], mode='markers+lines',
+                                       name=trace_name, legendgroup=trace_name, line_shape='hv',
+                                       marker=dict(line_color=color,
+                                                   color=color,
+                                                   line_width=2,
+                                                   size=marker_size),
+                                       customdata=customdata, showlegend=showlegend, **kwargs),
+                          row=1, col=1)
+        i = 1
+    else:
+        i = 0
     for col_ind in range(len(columns)):
         i += 1
         k = -1
@@ -131,15 +162,17 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
                     if customdata is not None:
                         customdata = customdata[0:ind]
 
-                fig.add_trace(go.Scattergl(x=t, y=sig, mode='markers',
-                                         name=trace_name, marker=dict(line_color=color, color=color,
-                                                                    line_width=2, size=marker_size),
-                                         customdata=customdata,
-                                         hovertemplate=hovertemplate, **kwargs), row=i, col=1)
+                fig.add_trace(go.Scattergl(x=t, y=sig, mode='markers', name=trace_name, legendgroup=trace_name,
+                                           marker=dict(line_color=color, color=color,
+                                                       line_width=2, size=marker_size), customdata=customdata,
+                                           hovertemplate=hovertemplate,
+                                           showlegend=(showlegend and col_ind==0 and modedata is None), **kwargs), row=i, col=1)
             else:
                 ind = min(limit_num_points, d.shape[0])
-                fig.add_trace(go.Scattergl(x=t[0:ind], y=sig[0:ind], mode=mode, name=trace_name, customdata=customdata,
-                                         line=dict(color=color), line_shape=lineShape, **kwargs), row=i, col=1)
+                fig.add_trace(go.Scattergl(x=t[0:ind], y=sig[0:ind], mode=mode, name=trace_name, legendgroup=trace_name,
+                                           customdata=customdata,
+                                           line=dict(color=color, shape=lineShape),
+                                           showlegend=(showlegend and col_ind==0 and modedata is None), **kwargs), row=i, col=1)
             fig.update_yaxes(title_text=str(col_name), row=i, col=1, title_font=dict(size=y_title_font_size),
                              categoryorder='category ascending')
         if i % 2 == 0:
@@ -185,21 +218,24 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=
     if type(idle_states) is str:
         idle_states = [idle_states]
 
-    stateflow_df_list = []
-    for station, s in stateflow.items():
-        if s.size:
-            sf = s[(~s[state_col].isin(idle_states))]
-                    # ((start_plot <= s.Timestamp) &
-                    #  (s.Timestamp <= finish_plot)) |
-                    # ((start_plot <= s.Finish) & (s.Finish <= finish_plot)))
-            sf['Task'] = station
-            # if sf.size > 0 and pd.isnull(sf['Finish'].iloc[-1]):
-            #     sf['Finish'].iloc[-1] = pd.to_datetime(finish_plot)
-            # s['Finish'] = pd.to_datetime(s['Finish'])
-            stateflow_df_list.append(sf)
-        else:
-            stateflow_df_list.append(pd.DataFrame([]))
-    stateflow_df = pd.concat(stateflow_df_list)
+    if isinstance(stateflow, dict):
+        stateflow_df_list = []
+        for station, s in stateflow.items():
+            if s.size:
+                sf = s[(~s[state_col].isin(idle_states))]
+                        # ((start_plot <= s.Time) &
+                        #  (s.Time <= finish_plot)) |
+                        # ((start_plot <= s.Finish) & (s.Finish <= finish_plot)))
+                sf['Task'] = station
+                # if sf.size > 0 and pd.isnull(sf['Finish'].iloc[-1]):
+                #     sf['Finish'].iloc[-1] = pd.to_datetime(finish_plot)
+                # s['Finish'] = pd.to_datetime(s['Finish'])
+                stateflow_df_list.append(sf)
+            else:
+                stateflow_df_list.append(pd.DataFrame([]))
+        stateflow_df = pd.concat(stateflow_df_list)
+    else:
+        stateflow_df = stateflow
 
     if stateflow_df.shape[0] == 0:
         if return_figure:
@@ -258,7 +294,7 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=
         traces.append(go.Scattergl(x=x, y=y, line=dict(width=bar_height), name=name, line_color=color_mapping.get(name, "black"),
                                    hoverinfo='skip', mode='lines', legendgroup=name, showlegend=True))
         traces.append(go.Scattergl(x=np.asarray(g[start_column] + g.Duration / 2), y=g.Task, mode='text+markers',
-                                   marker=dict(size=1), name=name, marker_color=color_mapping.get(name, "black"),
+                                   marker=dict(size=5, color=color_mapping.get(name, "black")), name=name,
                                    showlegend=False,
                                    hovertext=hovertext, text=text, textfont=dict(size=10, color='olive'),
                                    hovertemplate=f'<extra></extra><b>{name}</b><br>%{{hovertext}}'))
@@ -270,8 +306,11 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=
         return traces
 
 
-def plot_cps_component(cps, id=None, node_labels=False, edge_labels=True, edge_font_size=6, edge_text_max_width=None,
-                       node_size=10, output="cyto"):
+def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False, edge_labels=True,
+                       show_transition_freq=False, edge_font_size=6, edge_text_max_width=None, init_label=False,
+                       show_transition_data=False, node_size=20, output="cyto", dash_port=8050, min_zoom=0.5,
+                       max_zoom=1, min_edge_thickness=0.1, max_edge_thickness=4, freq_as_edge_thickness=False,
+                       color="black", title_text=None):
     """
 
     :param cps:
@@ -285,11 +324,23 @@ def plot_cps_component(cps, id=None, node_labels=False, edge_labels=True, edge_f
     """
     if id is None:
         id = "graph"
-    nodes = []
-    for n in cps.discrete_states:
-        nodes.append(dict(data={'id': n, 'label': n}))
 
+    if color == "hsu":
+       color = "#B8234F"
+    nodes = []
     edges = []
+    for n in cps.discrete_states:
+        if n in cps.final_q:
+            nodes.append(dict(data={'id': n, 'label': n}, classes='final'))
+        else:
+            nodes.append(dict(data={'id': n, 'label': n}))
+        if n in cps.q0:
+            nodes.append(dict(data={'id': f"q0{n}", 'label': f"q0{n}"}, classes='q0'))
+            if init_label:
+                edges.append(dict(data=dict(label='init', source=f"q0{n}", target=n)))
+            else:
+                edges.append(dict(data=dict(source=f"q0{n}", target=n)))
+
     for e in cps.get_transitions():
         if 'timing' in e[3]:
             freq = len(e[3]['timing'])
@@ -297,11 +348,50 @@ def plot_cps_component(cps, id=None, node_labels=False, edge_labels=True, edge_f
         else:
             freq = 0
             timings = []
+
         edge = dict(data={'source': e[0],
                           'target': e[1],
-                          'label': f'{e[3]["event"]} [{freq}]',
-                          'timing': timings})
-        edges.append(edge)
+                          'label': f'{e[3]["event"]}',
+                          'timing': timings,
+                          'freq': freq})
+
+        existing_edge = next((x for x in edges if x['data']['source'] == edge['data']['source'] and
+                             x['data']['target'] == edge['data']['target']), None)
+        if existing_edge is None:
+            if show_transition_freq:
+                edge['data']['label'] += f' [{freq}]'
+
+            if show_transition_data:
+                edge_data = e[3]
+                ev = edge_data.pop('event', None)
+                if isinstance(show_transition_data, list):
+                    edge_data = {k: v for k, v in edge_data.items() if k in show_transition_data}
+                edge['data']['label'] += " "
+                edge['data']['label'] += " ".join(f"{key} = {value}" for key, value in edge_data.items())
+            edges.append(edge)
+        else:
+            if show_transition_freq:
+                existing_edge['data']['label'] += f'| [{freq}]'
+
+            if show_transition_data:
+                edge_data = e[3]
+                ev = edge_data.pop('event', None)
+                if isinstance(show_transition_data, list):
+                    edge_data = {k: v for k, v in edge_data.items() if k in show_transition_data}
+                existing_edge['data']['label'] += f" | {ev} " + ", ".join(f"{key} = {value}" for key, value in edge_data.items())
+
+    # Normalize thickness to the range [1, 10]
+    thickness_values = [edge["data"].get("freq", 1) for edge in edges]
+    min_thickness = min(thickness_values)
+    max_thickness = max(thickness_values)
+
+    if max_thickness == min_thickness:
+        max_thickness += 1
+
+    for edge in edges:
+        raw_thickness = edge["data"].get("freq", 1)
+        edge["data"]["thickness"] = ((raw_thickness - min_thickness) / (max_thickness - min_thickness) *
+                                     (max_edge_thickness - min_edge_thickness) + min_edge_thickness)
 
     elements = dict(nodes=nodes, edges=edges)
 
@@ -309,24 +399,42 @@ def plot_cps_component(cps, id=None, node_labels=False, edge_labels=True, edge_f
         return elements
 
     node_style = {'width': node_size,
-                  'height': node_size}
+                  'height': node_size,
+                  'border-width': 1,
+                  'border-color': color,
+                  'background-color': 'transparent',
+                  "font-family": "serif",
+                  'background-opacity': 0}
     if node_labels:
-        node_style['label'] = 'data(id)'
+        node_style['label'] = 'data(label)'
         node_style['font-size'] = 6
+        node_style['font-style'] = "italic"
         node_style['text-wrap'] = 'wrap'
         node_style['text-max-width'] = 50
+    if center_node_labels:
+        node_style['text-halign'] = 'center',
+        node_style['text-valign'] = 'center'
+
 
     edge_style = {
-                # The default curve style does not work with certain arrows
                 'curve-style': 'bezier',
+                'background-color': 'white',  # Inner fill
                 'target-arrow-shape': 'triangle',
+                'target-arrow-color': color,
                 'target-arrow-size': 3,
                 'width': 1,
+                'font-style': "italic",
+                "font-family": "serif",
                 'font-color': 'gray',
                 'text-wrap': 'wrap',
                 'font-size': edge_font_size,
-                'text-max-width': edge_text_max_width
+                'text-max-width': edge_text_max_width,
+                'line-color': color
     }
+
+    if freq_as_edge_thickness:
+        edge_style['width'] = 'data(thickness)'
+
     if edge_labels:
         edge_style['label'] = 'data(label)'
 
@@ -336,22 +444,31 @@ def plot_cps_component(cps, id=None, node_labels=False, edge_labels=True, edge_f
             'style': node_style
         },
         {
+            'selector': '.q0',
+            'style': {
+                    'width': 1,  # Small width to make it look like a point
+                    'height': 1,  # Small height to make it look like a point
+                    'label': '',  # No label to keep it minimal
+                    'border-width': 0  # No border
+                }
+        },
+        {
+            'selector': '.final',
+            'style': {
+                'border-width': 3  # No border
+            }
+        },
+        {
             'selector': 'edge',
             'style': edge_style
         }]
 
-
-
     network = cyto.Cytoscape(
         id=id,
         layout={'name': 'cose', "fit": True},
-        # layout={
-        #     'id': 'breadthfirst',
-        #     'roots': '[id = "initial"]'
-        # },
-        maxZoom=2,
-        minZoom=0.5,
-        style={'width': '100%', 'height': '600px'}, stylesheet=stylesheet,
+        maxZoom=max_zoom,
+        minZoom=min_zoom,
+        style={'width': '100%', 'height': '1200px'}, stylesheet=stylesheet,
         elements=elements)
 
     modal_state_data = dbc.Modal(children=[dbc.ModalHeader("Timings"),
@@ -360,17 +477,43 @@ def plot_cps_component(cps, id=None, node_labels=False, edge_labels=True, edge_f
     modal_transition_data = dbc.Modal(children=[dbc.ModalHeader("Timings"),
                                                 dbc.ModalBody(html.Div(children=[]))],
                                  id=f"{id}-modal-transition-data")
-    # network = html.Div([network, modal_state_data, modal_transition_data])
+    network = html.Div([title_text, network, modal_state_data, modal_transition_data])
+
     if output == "notebook":
         app = Dash(__name__)
         app.layout = html.Div(children=[network])
-        app.run_server(mode='inline')
-        return
-    return network
+        app.run(mode='inline', port=dash_port)
+    elif output == "dash":
+        app = Dash(__name__)
+        app.layout = html.Div(children=[network], style={'width': '100%',
+                                                         'height': '100vh',
+                                                         'margin': '0',
+                                                         'padding': '0'})
+
+        # Function to start the Dash server
+        def run_dash():
+            app.run_server(port=dash_port, debug=False, use_reloader=False)  # Start the Dash server
+
+        # Function to open the browser
+        def open_browser():
+            time.sleep(1)  # Give the server a second to start
+            webbrowser.open(f"http://127.0.0.1:{dash_port}/")  # Open the Dash app in the browser
+
+        # Start the Dash server in a separate thread
+        server_thread = threading.Thread(target=run_dash)
+        server_thread.daemon = True  # Allows the program to exit even if this thread is running
+        server_thread.start()
+
+        # Open the Dash app in the default browser
+        open_browser()
+        server_thread.join(timeout=1)
+        return app
+    else:
+        return network
 
 
-def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_size=40, node_font_size=20, edge_font_size=16, edge_text_max_width=None, output="cyto",
-             dash_port=8050, height='100vh', **kwargs):
+def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_size=40, node_font_size=20,
+             edge_font_size=16, edge_text_max_width=None, output="cyto", dash_port=8050, height='100vh', **kwargs):
     """
     Plots all the components of a CPS in the same figure.
     :param cps: CPS to plot.
@@ -480,9 +623,6 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
                                                          'margin': '0',
                                                          'padding': '0'})
 
-
-        import time, webbrowser, threading
-
         # Function to start the Dash server
         def run_dash():
             app.run_server(port=dash_port, debug=False, use_reloader=False)  # Start the Dash server
@@ -497,11 +637,17 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
         server_thread.daemon = True  # Allows the program to exit even if this thread is running
         server_thread.start()
 
+        # Start the Dash server in a separate thread
+        server_thread = threading.Thread(target=run_dash)
+        server_thread.daemon = True  # Allows the program to exit even if this thread is running
+        server_thread.start()
+
         # Open the Dash app in the default browser
         open_browser()
         server_thread.join(timeout=1)
 
     return network
+
 
 def plot_cps_plotly(cps, layout="dot", marker_size=20, node_positions=None, show_events=True, show_num_occur=False,
                 show_state_label=True, font_size=10, plot_self_transitions=True, use_previos_node_positions=False,
@@ -740,7 +886,7 @@ def plot_state_transitions(ta, state, obs=None):
         raise NotImplemented()
         # observations = self.get_transition_observations(state)
 
-    obs = obs[obs['State'] == state]
+    obs = obs[obs['Mode'] == state]
     ind = 0
     for k in trans:
         v = obs[obs.q_next == k[1]]
@@ -784,7 +930,7 @@ def plot_state_transitions(ta, state, obs=None):
                                                                                                      o['Vergussgruppe'],
                                                                                                      o['ArtNr'])
                 for o in vv]
-            fig.add_trace(go.Scatter(x=[o['Timestamp'] for o in vv], y=[o['Duration'] for o in vv],
+            fig.add_trace(go.Scatter(x=[o['Time'] for o in vv], y=[o['Duration'] for o in vv],
                                      marker=dict(size=6, symbol="circle", color=DEFAULT_PLOTLY_COLORS[ind_color]),
                                      name=vg,
                                      mode="markers",
@@ -795,37 +941,89 @@ def plot_state_transitions(ta, state, obs=None):
     return fig
 
 
-def plot_bipartite_graph(network):
-    """
-    Plots a bipartite graph of a network graph.
-    :param network: networkx network or a bi-adjacency matrix.
-    :return:
-    """
-    if type(network) is np.array:
-        # Iterate through each column (edge) of the bi-adjacency matrix
-        edges = []
-        for col_name in network.columns:
-            col = network[col_name]
-            inflow = col.index[col == 1]
-            outflow = col.index[col == -1]
-            edges += [(col_name, inf, 1) for inf in inflow] + [(col_name, outf, -1) for outf in outflow]
+# def plot_bipartite_graph(network):
+#     """
+#     Plots a bipartite graph of a network graph.
+#     :param network: networkx network or a bi-adjacency matrix.
+#     :return:
+#     """
+#     if type(network) is np.array:
+#         # Iterate through each column (edge) of the bi-adjacency matrix
+#         edges = []
+#         for col_name in network.columns:
+#             col = network[col_name]
+#             inflow = col.index[col == 1]
+#             outflow = col.index[col == -1]
+#             edges += [(col_name, inf, 1) for inf in inflow] + [(col_name, outf, -1) for outf in outflow]
+#
+#         SM = nx.DiGraph()
+#         SM.add_weighted_edges_from(edges)
+#     else:
+#         SM = network
+#
+#     if not nx.bipartite.is_bipartite(SM):
+#         raise Exception("Not bipartite graph")
+#     top = nx.bipartite.sets(SM)[0]
+#     pos = nx.bipartite_layout(SM, top)
+#     nx.draw(SM, pos=pos, with_labels=True, node_color='skyblue', edge_color='black', font_color='red', node_size=800,
+#             font_size=10)
+#     # Draw edge labels (weights)
+#     edge_labels = nx.get_edge_attributes(SM, 'weight')
+#     nx.draw_networkx_edge_labels(SM, pos, edge_labels=edge_labels,  label_pos=0.7, font_color='blue')
+#     plt.show()
 
-        SM = nx.DiGraph()
-        SM.add_weighted_edges_from(edges)
-    else:
-        SM = network
 
-    if not nx.bipartite.is_bipartite(SM):
-        raise Exception("Not bipartite graph")
-    top = nx.bipartite.sets(SM)[0]
-    pos = nx.bipartite_layout(SM, top)
-    nx.draw(SM, pos=pos, with_labels=True, node_color='skyblue', edge_color='black', font_color='red', node_size=800,
-            font_size=10)
-    # Draw edge labels (weights)
-    edge_labels = nx.get_edge_attributes(SM, 'weight')
-    nx.draw_networkx_edge_labels(SM, pos, edge_labels=edge_labels,  label_pos=0.7, font_color='blue')
-    plt.show()
+def plot_dash_frames(graph_frames, dash_port=8050):
+    app = Dash(__name__)
+    app.layout = html.Div(children=graph_frames[0], style={'width': '100%',
+                                                           'height': '100vh',
+                                                           'margin': '0',
+                                                           'padding': '0'})
 
+    app.layout = html.Div([
+        html.Div(graph_frames[0], id='cytoscape-graph'),
+
+        # Slider for manual frame selection
+        dcc.Slider(
+            id='graph-slider',
+            min=0,
+            max=len(graph_frames) - 1,
+            step=1,
+            marks={i: str(i) for i in range(len(graph_frames))},  # Label frames
+            value=0,  # Start at first frame
+        ),
+    ])
+
+
+    # Callback to update Cytoscape graph when slider changes
+    @app.callback(
+        Output('cytoscape-graph', 'children'),
+        Input('graph-slider', 'value')
+    )
+    def update_graph(frame_idx):
+        print(frame_idx)
+        return graph_frames[frame_idx]  # Update Cytoscape graph
+
+    # Function to start the Dash server
+    def run_dash():
+        app.run_server(port=dash_port, debug=False, use_reloader=False)  # Start the Dash server
+
+    # Function to open the browser
+    def open_browser():
+        time.sleep(1)  # Give the server a second to start
+        webbrowser.open(f"http://127.0.0.1:{dash_port}/")  # Open the Dash app in the browser
+
+    # Start the Dash server in a separate thread
+    server_thread = threading.Thread(target=run_dash)
+    server_thread.daemon = True  # Allows the program to exit even if this thread is running
+    server_thread.start()
+
+    # Open the Dash app in the default browser
+    open_browser()
+    # server_thread.join(timeout=1)
+
+    input("Press Enter to continue...")
+    return app
 
 def plot_execution_tree(graph, nodes_to_color, color, font_size=30):
     # The function plots system execution in form of a graph, where horizontal position of the nodes corresponds to the
@@ -916,3 +1114,49 @@ def plot_execution_tree(graph, nodes_to_color, color, font_size=30):
         stylesheet=new_stylesheet
     )
     return cytoscapeobj
+
+def plot2d(df, x=None, y=None, mode='markers', hovercolumns=None, figure=False, **args):
+    hovertemplate = f"{x}: %{{x}}<br>{y}: %{{y}}"
+    customdata = None
+    if hovercolumns:
+        customdata = df[hovercolumns]
+        for ind, c in enumerate(hovercolumns):
+            hovertemplate += f"<br>{c}: %{{customdata[{ind}]}}"
+
+    trace = go.Scatter(x=df[x], y=df[y], mode=mode, customdata=customdata, hovertemplate=hovertemplate, **args)
+    if figure:
+        return go.Figure(data=trace)
+    return trace
+
+
+def plot_2d_contour_from_fun(fun, rangex=None, rangey=None, th=50, **kwargs):
+    if rangex is None:
+        rangex = (-5, 5)
+
+    if rangey is None:
+        rangey = (-5, 5)
+
+    x = np.linspace(rangex[0], rangex[-1], 100)
+    y = np.linspace(rangey[0], rangey[-1], 100)
+    [dx, dy] = np.meshgrid(x, y)
+    d = np.column_stack([dx.flatten(), dy.flatten()])
+    f = fun(d)
+
+    contours = list(f)
+    contours.sort()
+    contours = contours[0:1000:]
+    return go.Contour(x=x, y=y, z=np.reshape(f, dx.shape), contours=dict(coloring='lines'), **kwargs)
+    #dict(start=0,
+                                    # end=100,
+                                    # size=2,
+                                    # coloring='lines'), **kwargs)
+
+
+def plot3d(df, x=None, y=None, z=None, mode='markers', hovercolumns=None, **args):
+    hovertemplate = f"{x}: %{{x}}<br>{y}: %{{y}}<br>{z}: %{{z}}"
+    customdata = None
+    if hovercolumns:
+        customdata = df[hovercolumns]
+        for ind, c in enumerate(hovercolumns):
+            hovertemplate += f"<br>{c}: %{{customdata[{ind}]}}"
+    return go.Scatter3d(x=df[x], y=df[y], z=df[z], mode=mode, customdata=customdata, hovertemplate=hovertemplate, **args)
