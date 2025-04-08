@@ -291,11 +291,13 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=
                 if not pd.isnull(val) and k not in [state_col, finish_column, start_column, 'Task', 'Duration']:
                     ht += f'<br>{k}: {val}'
             hovertext.append(ht)
-        traces.append(go.Scattergl(x=x, y=y, line=dict(width=bar_height), name=name, line_color=color_mapping.get(name, "black"),
-                                   hoverinfo='skip', mode='lines', legendgroup=name, showlegend=True))
+
+        color = color_mapping.get(name, "black")
+        traces.append(go.Scattergl(x=x, y=y, line=dict(width=bar_height), name=name, line_color=color,
+                                   hoverinfo='skip', mode='lines', legendgroup=name, showlegend=True, opacity=0.8))
         traces.append(go.Scattergl(x=np.asarray(g[start_column] + g.Duration / 2), y=g.Task, mode='text+markers',
-                                   marker=dict(size=5, color=color_mapping.get(name, "black")), name=name,
-                                   showlegend=False,
+                                   marker=dict(size=5, color=color), name=name,
+                                   showlegend=False, opacity=0.8,
                                    hovertext=hovertext, text=text, textfont=dict(size=10, color='olive'),
                                    hovertemplate=f'<extra></extra><b>{name}</b><br>%{{hovertext}}'))
 
