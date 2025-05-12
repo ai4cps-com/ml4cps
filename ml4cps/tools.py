@@ -44,7 +44,7 @@ def window(x, window_size, window_step):
     if type(x) is list:
         return [window(xx, window_size, window_step) for xx in x]
     else:
-        return x.unfold(dimension=0, size=window_size, step=window_step)
+        return x.unfold(dimension=0, size=window_size, step=window_step).transpose(1,2)
 
 
 def extend_derivative(signals, use_derivatives=(0, 1)): # Can be torch also
