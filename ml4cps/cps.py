@@ -274,6 +274,9 @@ class CPSComponent(PythonModel, sim.Simulator):
     def __init__(self, id, t=0, initial_q=(), initial_xt: list = (), initial_xk: list = (), dt=-1., p=None,
                  cont_state_names=None, discr_state_names=None, discr_output_names=None,
                  cont_output_names=None, unknown_state="Unknown"):
+        sim.Simulator.__init__(self)
+        PythonModel.__init__(self)
+
         self._parent_system = None
         self.decision_logic = None
         self.id = id
@@ -314,7 +317,7 @@ class CPSComponent(PythonModel, sim.Simulator):
         self.output_y = None
         self.output_d = None
 
-        super(sim.Simulator).__init__()
+
 
     # def copy(self):
     #     new_copy = CPSComponent(self.id, self._t, initial_q=self._q, initial_xt=self._xt,
