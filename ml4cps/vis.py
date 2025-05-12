@@ -296,9 +296,9 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=
             custom_data.append(dict(Start=x1, Finish=x2, State=name, Task=tsk, Source=row.get('Quelle', None)))
 
         color = color_mapping.get(name, "black")
-        traces.append(go.Scattergl(x=x, y=y, line=dict(width=bar_height), name=name, line_color=color,
+        traces.append(go.Scatter(x=x, y=y, line=dict(width=bar_height), name=name, line_color=color,
                                    hoverinfo='skip', mode='lines', legendgroup=name, showlegend=True, opacity=0.8))
-        traces.append(go.Scattergl(x=np.asarray(g[start_column] + g.Duration / 2), y=g.Task, mode='text+markers',
+        traces.append(go.Scatter(x=np.asarray(g[start_column] + g.Duration / 2), y=g.Task, mode='text+markers',
                                    marker=dict(size=5, color=color), name=name,
                                    showlegend=False, opacity=0.8, customdata=custom_data,
                                    hovertext=hovertext, text=text, textfont=dict(size=10, color='olive'),
