@@ -141,7 +141,7 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
             if len(d.index.names) > 1:
                 t = d.index.get_level_values(d.index.names[-1]).to_numpy()
             else:
-                t = d.index.to_numpy()
+                t = d.index.values
             if d[col].dtype == tuple:
                 sig = d[col].astype(str).to_numpy()
             else:
@@ -387,8 +387,8 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
 
     # Normalize thickness to the range [1, 10]
     thickness_values = [edge["data"].get("freq", 1) for edge in edges]
-    min_thickness = min(thickness_values)
-    max_thickness = max(thickness_values)
+    min_thickness = min(thickness_values) if thickness_values else 0
+    max_thickness = max(thickness_values) if thickness_values else 0
 
     if max_thickness == min_thickness:
         max_thickness += 1
@@ -417,7 +417,7 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
         node_style['text-wrap'] = 'wrap'
         node_style['text-max-width'] = 50
     if center_node_labels:
-        node_style['text-halign'] = 'center',
+        node_style['text-halign'] = 'center'
         node_style['text-valign'] = 'center'
 
 
@@ -497,7 +497,7 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
 
         # Function to start the Dash server
         def run_dash():
-            app.run_server(port=dash_port, debug=False, use_reloader=False)  # Start the Dash server
+            app.run(port=dash_port, debug=False, use_reloader=False)  # Start the Dash server
 
         # Function to open the browser
         def open_browser():
@@ -511,7 +511,7 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
 
         # Open the Dash app in the default browser
         open_browser()
-        server_thread.join(timeout=1)
+        server_thread.join(timeout=10)
         return app
     else:
         return network
@@ -760,11 +760,11 @@ def plot_cps_plotly(cps, layout="dot", marker_size=20, node_positions=None, show
 
     def fun(tr):
         if show_events and show_num_occur:
-            return '<i>{} ({})</i>'.format(tr[2], cps.num_occur(tr[0], tr[2]))
+            return '<i>{} ({})</i>'.format(tr[2], cps.num_occur(tr))
         elif show_events:
             return '<i>{}</i>'.format(tr[2])
         elif show_num_occur:
-            return '<i>{}</i>'.format(cps.num_occur(tr[0], tr[2]))
+            return '<i>{}</i>'.format(cps.num_occur(tr))
 
     if show_num_occur or show_events:
         annotations_text = [dict(x=(0.4 * node_positions[tr[0]][0] + 0.6 * node_positions[tr[1]][0]),
