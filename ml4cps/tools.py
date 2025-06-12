@@ -44,7 +44,12 @@ def window(x, window_size, window_step):
     if type(x) is list:
         return [window(xx, window_size, window_step) for xx in x]
     else:
-        return x.unfold(dimension=0, size=window_size, step=window_step).transpose(1,2)
+        x_unfolded = x.unfold(dimension=0, size=window_size, step=window_step)
+        dims = list(range(x_unfolded.dim()))  # current dims [0, 1, 2, ..., unfolded_dim]
+        # Move last dimension (-1) to position 1
+        new_order = [dims[0], dims[-1]] + dims[1:-1]
+        return x_unfolded.permute(*new_order)
+
 
 
 def extend_derivative(signals, use_derivatives=(0, 1)): # Can be torch also
