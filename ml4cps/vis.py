@@ -213,6 +213,30 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
 def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=12,
                    start_column='Start', finish_column='Finish', return_figure=False, description_col='Description',
                    idle_states=None):
+    """
+    Visualizes state transitions over time for one or more tasks/stations as a Gantt-like interactive timeline.
+
+    Parameters:
+    - stateflow (DataFrame or dict): DataFrame with state transitions, or a dictionary of DataFrames per station.
+    - color_mapping (dict, optional): Mapping of state names to colors. If None, default colors are used.
+    - state_col (str): Column name indicating the state (default: 'State').
+    - bar_height (int): Height of the timeline bars (default: 12).
+    - start_column (str): Column name with start timestamps (default: 'Start').
+    - finish_column (str): Column name with end timestamps (default: 'Finish').
+    - return_figure (bool): If True, returns a Plotly Figure. Otherwise, returns a list of Plotly traces.
+    - description_col (str or list): Column(s) to include in the hover tooltip (default: 'Description').
+    - idle_states (str or list): State(s) to exclude from the plot (e.g., 'IDLE').
+
+    Returns:
+    - Plotly Figure or list of traces, depending on `return_figure`.
+
+    Example:
+        fig = plot_stateflow(df, state_col='Mode', start_column='StartTime', finish_column='EndTime', return_figure=True)
+        fig.show()
+
+    This function is ideal for visualizing process flows, machine states, or event-based logs with time intervals.
+    """
+
     if idle_states is None:
         idle_states = []
     if type(idle_states) is str:

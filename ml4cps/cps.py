@@ -7,6 +7,7 @@
 """
 import copy
 import json
+from abc import abstractmethod
 from traceback import print_exc
 import numpy as np
 from collections import OrderedDict
@@ -14,7 +15,7 @@ import pandas as pd
 import warnings
 from scipy.integrate import solve_ivp
 import simpy
-from mlflow.pyfunc import PythonModel
+from mlflow.pyfunc import PythonModel, PythonModelContext
 from ml4cps import tools, sim
 
 
@@ -589,9 +590,6 @@ class CPSComponent(PythonModel, sim.Simulator):
         if verbose:
             print('Simulation finished.')
         return discr_state_data, discr_output_data, cont_state_data, cont_output_data, env.now
-
-    def predict(self, context, model_input):
-        pass
 
     def get_sim_state(self):
         return self._q, self._p, self._y, self._block_event

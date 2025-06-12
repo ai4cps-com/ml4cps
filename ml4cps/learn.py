@@ -157,8 +157,8 @@ def simple_learn_from_signal_vectors(data, sig_names, drop_no_changes=False, ver
 
         for source, dest, ev, dt in zip(previous_state.itertuples(index=False, name=None),
                                         dest_state.itertuples(index=False, name=None), event, deltat):
-            source = pprint.pformat(source, compact=True).replace(".0", "")
-            dest = pprint.pformat(dest, compact=True).replace(".0", "")
+            source = pprint.pformat(source, compact=True, width=10000).replace(".0", "")
+            dest = pprint.pformat(dest, compact=True, width=10000).replace(".0", "")
             a.add_single_transition(source, dest, ev, dt)
     return a
 

@@ -65,7 +65,7 @@ class Automaton (CPSComponent):
         if transitions is not None:
             for tr in transitions:
                 if type(tr) is dict:
-                    self._G.add_edge(tr.pop('source'), tr.pop('dest'), event=tr.pop('event'), **tr)
+                    self._G.add_edge(tr.pop('source'), tr.pop('destination'), event=tr.pop('event'), **tr)
                 else:
                     self._G.add_edge(tr[0], tr[2], event=tr[1])
 
@@ -584,7 +584,7 @@ class Automaton (CPSComponent):
                 time = dest['time']
                 if callable(time):
                     time = time()
-                return time, dest['dest']
+                return time, dest['destination']
         return None, None
 
     def get_transition(self, s, d=None, e=None, if_more_than_one='raise'):
