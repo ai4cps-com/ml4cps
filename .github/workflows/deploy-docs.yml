@@ -36,7 +36,7 @@ jobs:
 
 
       - name: Create CNAME file
-        run: echo "automata4cps.ai4cps.com" > ./docs/build/html/CNAME  # Replace with your custom domain
+        run: echo "ml4cps.ai4cps.com" > ./docs/build/html/CNAME  # Replace with your custom domain
 
 
       - name: Deploy to GitHub Pages

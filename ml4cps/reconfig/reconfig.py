@@ -30,6 +30,6 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     SM = example_two_tank_system()
 
-    from automata4cps.vis import plot_bipartite_graph
+    from ml4cps.vis import plot_bipartite_graph
 
     plot_bipartite_graph(SM)
