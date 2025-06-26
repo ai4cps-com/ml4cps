@@ -542,7 +542,8 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
 
 
 def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_size=40, node_font_size=20,
-             edge_font_size=16, edge_text_max_width=None, output="cyto", dash_port=8050, height='100vh', **kwargs):
+             edge_font_size=16, edge_text_max_width=None, output="cyto", dash_port=8050, height='100vh',
+             minZoom=0.5, maxZoom=2, **kwargs):
     """
     Plots all the components of a CPS in the same figure.
     :param cps: CPS to plot.
@@ -626,8 +627,8 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
         #     'id': 'breadthfirst',
         #     'roots': '[id = "initial"]'
         # },
-        # maxZoom=2,
-        # minZoom=0.5,
+        maxZoom=maxZoom,
+        minZoom=minZoom,
         # style={'width': '100%'},
         stylesheet=stylesheet,
         elements=elements, style={'width': '100%', 'height': height},
