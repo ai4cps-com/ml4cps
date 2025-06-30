@@ -1,0 +1,43 @@
+#upload-data:hover{
+    background-color:cornflowerblue;
+    border-color:blue;
+}
+#upload-gt:hover{
+    background-color:crimson;
+    border-color:maroon
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; /* Ensures the container stretches to full viewport height */
+    background-image: url('white_triangles.png');
+    background-repeat: repeat;
+    background-size: cover;
+    font-family: Constantia, "Lucida Bright", Lucidabright, "Lucida Serif", Lucida, "DejaVu Serif",
+                       "Bitstream Vera Serif", "Liberation Serif", Georgia, serif;
+    width: 100%;
+}
+
+#content {
+    flex-grow: 1;
+    /*display: flex;*/
+    /*justify-content: center; !* Align content horizontally *!*/
+    /*align-items: center;     !* Align content vertically *!*/
+}
+
+body, html, * {
+    color: #000;  /* Sets the font color to black */
+}
+
+#footer {
+    align-self: flex-end; /* Position at the bottom */
+    width: 100%;
+    text-align: center;
+}

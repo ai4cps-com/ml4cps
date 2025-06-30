@@ -1,6 +1,6 @@
-# ml4cps 
+# ML4CPS 
 
-ml4cps is a Python package for learning and analysis 
+ML4CPS is a Python package for learning and analysis 
 of the behavior of hybrid dynamical systems, with the focus on 
 Cyber-Physical Systems (CPS).
 The code was developed for several research publications ([bibtex](cite.bib)).
@@ -32,7 +32,7 @@ A.view_plotly().show()
 
 ## Install
 
-To install ml4cps:
+To install ML4CPS:
 
 ```
 pip install git+https://github.com/ai4cps-com/ml4cps.git
