@@ -2,12 +2,12 @@ from setuptools import setup, find_packages
 
 setup(
     name="ml4cps",
-    version="0.1.17",
+    version="0.1.18",
     packages=find_packages(),
     install_requires=[
         'dash', 'pandas', 'networkx', 'plotly', 'numpy', 'dash_daq', 'dash-bootstrap-components', 'pydotplus',
         'dash-cytoscape', 'simpy', 'mlflow', 'torch', 'z3-solver', 'scipy', 'sphinx', 'matplotlib', 'scikit-learn',
-        'fastdtw'
+        'fastdtw', 'openai', 'loguru', 'regex', 'Levenshtein', 'tqdm'
     ],
     author="Nemanja Hranisavljevic & Tom Westermann",
     author_email="nemanja@ai4cps.com",
