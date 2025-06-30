@@ -1,6 +1,19 @@
-# Author Nemanja Hranisavljevic
-# Work within the project SILK:
-#
+"""
+This tool enables comparison of multiple JSON files, each containing structured analysis results
+(e.g., pattern extraction output). One file is treated as the ground truth, while the others are
+evaluated against it. The results are visualized to compare the relative performance of each analysis.
+
+It is particularly useful for determining which extracted JSON file most closely aligns with the
+ground-truth data. It is intended to be used iteratively alongside LLM-based processing, allowing each new result
+(in the form of a .json file) from the LLM-based solution to be easily evaluated.
+
+Author:
+    Nemanja Hranisavljevic, Helmut Schmidt University, Hamburg
+
+Project:
+    SILK – Security incident assessment through AI-based text mining https://www.hsu-hh.de/imb/en/projects/bmbf-silk
+
+"""
 
 import json
 import spacy
@@ -31,7 +44,7 @@ app.layout = html.Div(id="root",
                                                          'margin-top': '15px'}),
             ]
         ),
-        html.H1("Event Extraction Comparison", 
+        html.H1("Log Compare Tool",
                 style = {
                     'text-align': 'center'
                 }),
@@ -73,17 +86,13 @@ app.layout = html.Div(id="root",
             },
             # Allow multiple files to be uploaded
             multiple=True
-        ), 
-        html.H2("Cosine similarity graph",
-                style={
-                    'text-align': 'center'
-                }),
+        ),
         dcc.Graph(id='cosplot', figure={
             'layout': go.Layout(
                     plot_bgcolor='#e5ecf6',
                     paper_bgcolor='#f9f9f9',  
                     font={'color': '#333333'}, 
-                    title='Styled Graph',
+                    title='Cosine similarity graph',
                     xaxis={'title': 'X Axis', 'showgrid': False, 'color': 'black'}, 
                     yaxis={'title': 'Y Axis', 'showgrid': False, 'color': 'black'},  
                     margin={'l': 40, 'b': 40, 't': 40, 'r': 0},  
@@ -95,7 +104,7 @@ app.layout = html.Div(id="root",
             }),
         html.Button(
             id='edit-button',
-            children = "Download ground truth file:",
+            children = "Download ground truth file",
             style = {
                 'width': '97vw',
                 'height': '60px',
@@ -396,21 +405,6 @@ def create_combined_df(df_gt, df_others):
         # maybe in future we can use filename (fn)
         df = df.join(other, how='left', rsuffix=(f'_{ind+1}'))
     return df
-    # df_others = df_others.rename(columns=lambda x: x + '_2')
-    # df_combined = pd.concat([df_gt, df_others], axis=1)
-    # columns = df_combined.columns.tolist()
-    # original_cols = [col for col in columns if not col.endswith('_2')]
-    # renamed_cols = [col for col in columns if col.endswith('_2')]
-    # renamed_cols = [col[:-2] for col in renamed_cols]
-    # interleaved_cols = []
-    # for col in original_cols:
-    #     interleaved_cols.append(col)
-    #     if col in renamed_cols:
-    #         interleaved_cols.append(col + '_2')
-    # df_combined = df_combined[interleaved_cols]
-    # del df_combined['index_2']
-    # return df_combined
-
 
 def run(port=8050):
     app.run(debug=False, port=port)
