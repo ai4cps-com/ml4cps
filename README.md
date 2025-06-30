@@ -1,11 +1,11 @@
-# Automata4CPS 
+# ML4CPS 
 
-Automata4CPS is a Python package for learning and analysis 
+ML4CPS is a Python package for learning and analysis 
 of the behavior of hybrid dynamical systems, with the focus on 
 Cyber-Physical Systems (CPS).
 The code was developed for several research publications ([bibtex](cite.bib)).
 
--   Website ([automata4cps.ai4cps.com](http://automata4cps.ai4cps.com))
+-   Website ([ml4cps.ai4cps.com](http://ml4cps.ai4cps.com))
 -   Contact ([contact@ai4cps.com](mailto:contact@ai4cps.com))
 
 
@@ -32,16 +32,16 @@ A.view_plotly().show()
 
 ## Install
 
-To install Automata4CPS:
+To install ML4CPS:
 
 ```
-pip install git+https://github.com/ai4cps-com/automata4cps.git
+pip install git+https://github.com/ai4cps-com/ml4cps.git
 ```
 
 to specify the version:
 
 ```
-pip install git+https://github.com/ai4cps-com/automata4cps.git@0.1.12
+pip install git+https://github.com/ai4cps-com/ml4cps.git@0.1.12
 ```
 
 ## Data
