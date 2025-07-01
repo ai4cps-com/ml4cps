@@ -1,4 +1,4 @@
-﻿ml4cps.cps
+﻿ml4cps.control
 ================
 
 .. automodule:: ml4cps.control
