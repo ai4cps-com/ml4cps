@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>ml4cps.discretization.discretization module &#8212; ML4CPS 0.1.18 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=3f530b75" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=581a535d" />
+    <script src="_static/documentation_options.js?v=9969ed3f"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="ml4cps.examples package" href="ml4cps.examples.html" />
+    <link rel="prev" title="ml4cps.discretization package" href="ml4cps.discretization.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-ml4cps.discretization.discretization">
+<span id="ml4cps-discretization-discretization-module"></span><h1>ml4cps.discretization.discretization module<a class="headerlink" href="#module-ml4cps.discretization.discretization" title="Link to this heading">¶</a></h1>
+<p>The module provides base classes to represent the dynamics of cyber-physical systems (CPS): CPS and
+CPSComponent.</p>
+<p>Author: Nemanja Hranisavljevic, <a class="reference external" href="mailto:hranisan&#37;&#52;&#48;hsu-hh&#46;de">hranisan<span>&#64;</span>hsu-hh<span>&#46;</span>de</a></p>
+<dl class="py class">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.EqualFrequencyDiscretizer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ml4cps.discretization.discretization.</span></span><span class="sig-name descname"><span class="pre">EqualFrequencyDiscretizer</span></span><a class="headerlink" href="#ml4cps.discretization.discretization.EqualFrequencyDiscretizer" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ml4cps.discretization.discretization.TimeSeriesDiscretizer" title="ml4cps.discretization.discretization.TimeSeriesDiscretizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">TimeSeriesDiscretizer</span></code></a></p>
+<p>A class that implements the equal-frequency interval (EFI) discretization method. It divides each variable
+(column) into intervals such that each interval contains approximately the same number of data points.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.EqualFrequencyDiscretizer.discretize">
+<span class="sig-name descname"><span class="pre">discretize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_str</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append_discr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.EqualFrequencyDiscretizer.discretize" title="Link to this definition">¶</a></dt>
+<dd><p>Discretize data into equal-frequency intervals.
+:param df: Data to discretize.
+:param return_str: Whether to return discretized data as a concatenated string per row.
+:return: Discretized data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.EqualFrequencyDiscretizer.train">
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">number_of_intervals</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.EqualFrequencyDiscretizer.train" title="Link to this definition">¶</a></dt>
+<dd><p>Estimate model parameters, thresholds that divide each variable into equal-frequency intervals.
+:param data: Data to calculate model parameters from.
+:param number_of_intervals: Number of equal-frequency intervals per variable.
+:return:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.EqualWidthDiscretizer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ml4cps.discretization.discretization.</span></span><span class="sig-name descname"><span class="pre">EqualWidthDiscretizer</span></span><a class="headerlink" href="#ml4cps.discretization.discretization.EqualWidthDiscretizer" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ml4cps.discretization.discretization.TimeSeriesDiscretizer" title="ml4cps.discretization.discretization.TimeSeriesDiscretizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">TimeSeriesDiscretizer</span></code></a></p>
+<p>A class that implements equal-width interval (EWI) discretization method. It calculates range of every variable
+(column) of the input data into a predefined number of equal-width intervals.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.EqualWidthDiscretizer.discretize">
+<span class="sig-name descname"><span class="pre">discretize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_str</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append_discr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.EqualWidthDiscretizer.discretize" title="Link to this definition">¶</a></dt>
+<dd><p>Discretize data into equal width intervals.
+:param data: Data to discretize.
+:return: Discretized data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.EqualWidthDiscretizer.train">
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">number_of_intervals</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.EqualWidthDiscretizer.train" title="Link to this definition">¶</a></dt>
+<dd><p>Estimate model parameters, thresholds that divide each variable into equal-width intervals.
+:param data: Data to calculate model parameters from.
+:param number_of_intervals: Number of equal-width intervals per variable.
+:return:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.KMeansDiscretizer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ml4cps.discretization.discretization.</span></span><span class="sig-name descname"><span class="pre">KMeansDiscretizer</span></span><a class="headerlink" href="#ml4cps.discretization.discretization.KMeansDiscretizer" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ml4cps.discretization.discretization.TimeSeriesDiscretizer" title="ml4cps.discretization.discretization.TimeSeriesDiscretizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">TimeSeriesDiscretizer</span></code></a></p>
+<p>A class that implements K-means discretization. It clusters the data values of each variable
+into a predefined number of clusters using the K-means algorithm.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.KMeansDiscretizer.discretize">
+<span class="sig-name descname"><span class="pre">discretize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_str</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append_discr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.KMeansDiscretizer.discretize" title="Link to this definition">¶</a></dt>
+<dd><p>Discretize data into clusters determined by K-means.
+:param df: DataFrame to discretize.
+:param return_str: Whether to return discretized data as concatenated strings.
+:return: Discretized data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.KMeansDiscretizer.train">
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">number_of_clusters_per_var</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.KMeansDiscretizer.train" title="Link to this definition">¶</a></dt>
+<dd><p>Train the K-means discretizer by fitting K-means models for each variable (column) in the data.
+:param data: List of DataFrames to calculate model parameters from.
+:param number_of_clusters_per_var: Number of clusters (intervals) per variable.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.MultivariateKMeansDiscretizer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ml4cps.discretization.discretization.</span></span><span class="sig-name descname"><span class="pre">MultivariateKMeansDiscretizer</span></span><a class="headerlink" href="#ml4cps.discretization.discretization.MultivariateKMeansDiscretizer" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ml4cps.discretization.discretization.TimeSeriesDiscretizer" title="ml4cps.discretization.discretization.TimeSeriesDiscretizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">TimeSeriesDiscretizer</span></code></a></p>
+<p>A class that implements multivariate K-means discretization. It clusters the data
+based on all variables (columns) together into a predefined number of clusters.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.MultivariateKMeansDiscretizer.discretize">
+<span class="sig-name descname"><span class="pre">discretize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_str</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append_discr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.MultivariateKMeansDiscretizer.discretize" title="Link to this definition">¶</a></dt>
+<dd><p>Discretize data into clusters determined by K-means.
+:param df: DataFrame to discretize.
+:param return_str: Whether to return discretized data as concatenated strings.
+:return: Discretized data (cluster labels).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.MultivariateKMeansDiscretizer.train">
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">number_of_clusters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.MultivariateKMeansDiscretizer.train" title="Link to this definition">¶</a></dt>
+<dd><p>Train the K-means discretizer by fitting a single K-means model for all variables.
+:param data: List of DataFrames to calculate model parameters from.
+:param number_of_clusters: Number of clusters.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.ThresholdDiscretizer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ml4cps.discretization.discretization.</span></span><span class="sig-name descname"><span class="pre">ThresholdDiscretizer</span></span><a class="headerlink" href="#ml4cps.discretization.discretization.ThresholdDiscretizer" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ml4cps.discretization.discretization.TimeSeriesDiscretizer" title="ml4cps.discretization.discretization.TimeSeriesDiscretizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">TimeSeriesDiscretizer</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.ThresholdDiscretizer.discretize">
+<span class="sig-name descname"><span class="pre">discretize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">states</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.ThresholdDiscretizer.discretize" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.TimeSeriesDiscretizer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ml4cps.discretization.discretization.</span></span><span class="sig-name descname"><span class="pre">TimeSeriesDiscretizer</span></span><a class="headerlink" href="#ml4cps.discretization.discretization.TimeSeriesDiscretizer" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Abstract class that encapsulates methods used for the discretization of time series.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.TimeSeriesDiscretizer.discretize">
+<span class="sig-name descname"><span class="pre">discretize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.TimeSeriesDiscretizer.discretize" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ml4cps.discretization.discretization.TimeSeriesDiscretizer.train">
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.discretization.discretization.TimeSeriesDiscretizer.train" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">ML4CPS</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">ML4CPS installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="ml4cps.html">ml4cps package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="ml4cps.html">ml4cps package</a><ul>
+  <li><a href="ml4cps.discretization.html">ml4cps.discretization package</a><ul>
+      <li>Previous: <a href="ml4cps.discretization.html" title="previous chapter">ml4cps.discretization package</a></li>
+      <li>Next: <a href="ml4cps.examples.html" title="next chapter">ml4cps.examples package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Nemanja Hranisavljevic, Tom Westermann.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/ml4cps.discretization.discretization.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

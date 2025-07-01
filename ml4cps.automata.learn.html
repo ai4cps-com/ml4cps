@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>ml4cps.automata.learn module &#8212; ML4CPS 0.1.18 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=3f530b75" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=581a535d" />
+    <script src="_static/documentation_options.js?v=9969ed3f"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="ml4cps.control package" href="ml4cps.control.html" />
+    <link rel="prev" title="ml4cps.automata.base module" href="ml4cps.automata.base.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-ml4cps.automata.learn">
+<span id="ml4cps-automata-learn-module"></span><h1>ml4cps.automata.learn module<a class="headerlink" href="#module-ml4cps.automata.learn" title="Link to this heading">¶</a></h1>
+<p>The module provides learning algorithms for creation of different kinds of automata.</p>
+<p>Authors:
+- Nemanja Hranisavljevic, <a class="reference external" href="mailto:hranisan&#37;&#52;&#48;hsu-hh&#46;de">hranisan<span>&#64;</span>hsu-hh<span>&#46;</span>de</a>, <a class="reference external" href="mailto:nemanja&#37;&#52;&#48;ai4cps&#46;com">nemanja<span>&#64;</span>ai4cps<span>&#46;</span>com</a>
+- Tom Westermann, <a class="reference external" href="mailto:tom&#46;westermann&#37;&#52;&#48;hsu-hh&#46;de">tom<span>&#46;</span>westermann<span>&#64;</span>hsu-hh<span>&#46;</span>de</a>, <a class="reference external" href="mailto:tom&#37;&#52;&#48;ai4cps&#46;com">tom<span>&#64;</span>ai4cps<span>&#46;</span>com</a></p>
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.FnDetectChangePoints">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">FnDetectChangePoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">udout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xout_shifts</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.FnDetectChangePoints" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.FnShiftAndDiff">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">FnShiftAndDiff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">udout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm_coeff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_var</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_ud</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_deriv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ts</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.FnShiftAndDiff" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.FnTraceToTrainingData">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">FnTraceToTrainingData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trace</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_var</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_ud</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">useTime</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.FnTraceToTrainingData" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.build_pta">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">build_pta</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'event'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundaries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.build_pta" title="Link to this definition">¶</a></dt>
+<dd><p>In the function build_pta the prefix tree acceptor is created by going through each sequence of events in the
+learning examples. Also, the depth, in- and out-degree of the states are set.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.computeDistance">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">computeDistance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">der</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.computeDistance" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.filterChangePoints">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">filterChangePoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">udout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xout_shifts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chpoints</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chp_var</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.filterChangePoints" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.filterindx">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">filterindx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">indx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">windw</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.filterindx" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.findChangePoints">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">findChangePoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ending</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_depth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.findChangePoints" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.rpni">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">rpni</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">positive_samples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">negative_samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.rpni" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.simple_learn_from_event_logs">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">simple_learn_from_event_logs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count_repetition</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.simple_learn_from_event_logs" title="Link to this definition">¶</a></dt>
+<dd><p>Simple algorithm to learn a timed automaton.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.simple_learn_from_signal_updates">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">simple_learn_from_signal_updates</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sig_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.simple_learn_from_signal_updates" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ml4cps.automata.learn.simple_learn_from_signal_vectors">
+<span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">simple_learn_from_signal_vectors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sig_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_no_changes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.simple_learn_from_signal_vectors" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">ML4CPS</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">ML4CPS installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="ml4cps.html">ml4cps package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="ml4cps.html">ml4cps package</a><ul>
+  <li><a href="ml4cps.automata.html">ml4cps.automata package</a><ul>
+      <li>Previous: <a href="ml4cps.automata.base.html" title="previous chapter">ml4cps.automata.base module</a></li>
+      <li>Next: <a href="ml4cps.control.html" title="next chapter">ml4cps.control package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Nemanja Hranisavljevic, Tom Westermann.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/ml4cps.automata.learn.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
