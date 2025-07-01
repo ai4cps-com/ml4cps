@@ -4,8 +4,7 @@ import os
 import sys
 
 # Add the path to your package
-sys.path.insert(0, os.path.abspath('../../'))
-
+sys.path.insert(0, os.path.abspath('../../ml4cps'))
 
 #
 # For the full list of built-in configuration values, see the documentation:

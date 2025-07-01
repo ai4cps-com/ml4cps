@@ -8,8 +8,8 @@
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
-
-from ml4cps import Automaton
+from ml4cps import vis
+from ml4cps.automata.base import Automaton
 from collections import OrderedDict
 import pprint
 
@@ -398,9 +398,7 @@ def FnTraceToTrainingData(trace, num_var, num_ud, useTime):
 
 
 """ RPNI algorithm"""
-import vis
-from ml4cps.automata import Automaton
-from ml4cps.learn import build_pta
+
 
 def rpni(positive_samples, negative_samples):
 

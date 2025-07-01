@@ -7,6 +7,10 @@ REM Command file for Sphinx documentation
 if "%SPHINXBUILD%" == "" (
 	set SPHINXBUILD=sphinx-build
 )
+if "%SPHINXAPIDOC%" == "" (
+	set SPHINXAPIDOC=sphinx-apidoc
+)
+
 set SOURCEDIR=source
 set BUILDDIR=build
 
@@ -22,6 +26,10 @@ if errorlevel 9009 (
 	echo.https://www.sphinx-doc.org/
 	exit /b 1
 )
+
+REM Run sphinx-apidoc before building HTML
+echo Running sphinx-apidoc to generate .rst files...
+%SPHINXAPIDOC% -o %SOURCEDIR% ../ml4cps --force --module-first --separate
 
 if "%1" == "" goto help
 

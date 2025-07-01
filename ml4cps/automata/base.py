@@ -589,8 +589,8 @@ class Automaton (CPSComponent):
 
     def get_transition(self, s, d=None, e=None, if_more_than_one='raise'):
         """
-    Get all transitions with source state s, destination state __d. In case when e is provided, the returned list
-    contains transitions where event is e.
+        Get all transitions with source state s, destination state __d. In case when e is provided, the returned list
+        contains transitions where event is e.
         :param if_more_than_one:
         :param s: Source state.
         :param d: Destination state.
@@ -702,9 +702,9 @@ class Automaton (CPSComponent):
 
     def sample_initial(self):
         if len(self.q0) == 0:
-                current_q = np.random.choice(list(self.discrete_states.keys()), 1)[-1]
-                warnings.warn(
-                    'Initial state not defined, sampling initial state uniformly from the set of all states.')
+            current_q = np.random.choice(list(self.discrete_states.keys()), 1)[-1]
+            warnings.warn(
+                'Initial state not defined, sampling initial state uniformly from the set of all states.')
         else:
             current_q = np.random.choice(list(self.q0.keys()), 1)[-1]
         return current_q
