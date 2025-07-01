@@ -14,10 +14,10 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Automata4CPS'
-copyright = '2024, Nemanja Hranisavljevic, Tom Westermann'
+project = 'ML4CPS'
+copyright = '2025, Nemanja Hranisavljevic, Tom Westermann'
 author = 'Nemanja Hranisavljevic, Tom Westermann'
-release = '0.1.11'
+release = '0.1.18'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

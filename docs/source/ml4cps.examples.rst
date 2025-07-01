@@ -1,7 +1,7 @@
-﻿automata4cps.sim
-================
+﻿ml4cps.examples
+===========================
 
-.. automodule:: automata4cps.sim
+.. automodule:: ml4cps.examples
    :members:
    :undoc-members:
    :show-inheritance:

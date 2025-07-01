@@ -1,10 +1,10 @@
-Automata4CPS installation
+ML4CPS installation
 ==========================
 
 To install use:
 
-> pip install git+https://github.com/ai4cps-com/automata4cps.git
+> pip install git+https://github.com/ai4cps-com/ml4cps.git
 
-To specify version use:
+To specify the version use:
 
-> pip install git+https://github.com/ai4cps-com/automata4cps.git@0.1.12
+> pip install git+https://github.com/ai4cps-com/ml4cps.git@0.1.18

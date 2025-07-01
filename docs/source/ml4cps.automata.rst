@@ -1,7 +1,7 @@
-﻿automata4cps.learn
-==================
+﻿ml4cps.automata
+=====================
 
-.. automodule:: automata4cps.learn
+.. automodule:: ml4cps.automata
    :members:
    :undoc-members:
    :show-inheritance:

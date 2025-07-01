@@ -1,7 +1,7 @@
-﻿automata4cps.ad
+﻿ml4cps.reconfig
 ===============
 
-.. automodule:: automata4cps.ad
+.. automodule:: ml4cps.reconfig
    :members:
    :undoc-members:
    :show-inheritance:

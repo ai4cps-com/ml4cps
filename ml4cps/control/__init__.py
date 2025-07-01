@@ -1,1 +1,1 @@
-from ml4cps.control.control import *
+from ml4cps.control import *

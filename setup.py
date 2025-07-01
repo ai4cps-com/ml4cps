@@ -7,7 +7,7 @@ setup(
     install_requires=[
         'dash', 'pandas', 'networkx', 'plotly', 'numpy', 'dash_daq', 'dash-bootstrap-components', 'pydotplus',
         'dash-cytoscape', 'simpy', 'mlflow', 'torch', 'z3-solver', 'scipy', 'sphinx', 'matplotlib', 'scikit-learn',
-        'fastdtw', 'openai', 'loguru', 'regex', 'Levenshtein', 'tqdm'
+        'fastdtw', 'openai', 'loguru', 'regex', 'Levenshtein', 'tqdm', 'gymnasium'
     ],
     author="Nemanja Hranisavljevic & Tom Westermann",
     author_email="nemanja@ai4cps.com",

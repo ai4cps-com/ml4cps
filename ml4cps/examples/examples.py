@@ -1,5 +1,6 @@
 import datetime
-from ml4cps import Automaton, tools, vis
+from ml4cps import tools, vis
+from ml4cps.automata.base import Automaton
 import numpy as np
 import pandas as pd
 import os

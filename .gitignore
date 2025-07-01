@@ -2,7 +2,6 @@
 .idea/
 __pycache__/
 .ipynb_checkpoints/
-automata4cps_old.py
 docs/build/
 docs/source/_autosummary/
 ml4cps/mlruns/
