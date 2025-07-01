@@ -1,7 +1,7 @@
-﻿automata4cps.tools
-==================
+﻿ml4cps.discretization
+===========================
 
-.. automodule:: automata4cps.tools
+.. automodule:: ml4cps.discretization
    :members:
    :undoc-members:
    :show-inheritance:

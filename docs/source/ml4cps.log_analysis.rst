@@ -1,7 +1,7 @@
-﻿automata4cps.denta
-==================
+﻿ml4cps.log_analysis
+===========================
 
-.. automodule:: automata4cps.denta
+.. automodule:: ml4cps.log_analysis
    :members:
    :undoc-members:
    :show-inheritance:
