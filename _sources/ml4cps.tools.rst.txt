@@ -1,7 +1,7 @@
-﻿automata4cps.vis
-================
+﻿ml4cps.tools
+==================
 
-.. automodule:: automata4cps.vis
+.. automodule:: ml4cps.tools
    :members:
    :undoc-members:
    :show-inheritance:
