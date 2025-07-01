@@ -5,4 +5,3 @@
 """
 
 from .reconfig import *
-from .autoconf import *

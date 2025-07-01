@@ -16,7 +16,8 @@ import warnings
 from scipy.integrate import solve_ivp
 import simpy
 from mlflow.pyfunc import PythonModel, PythonModelContext
-from ml4cps import tools, sim
+from ml4cps import tools
+from ml4cps.cps import sim
 
 
 class CPS:
