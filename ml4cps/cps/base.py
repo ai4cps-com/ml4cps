@@ -29,7 +29,6 @@ class CPS:
     Attributes:
         id (str): Identifier of the object.
         com (OrderedDict): Property. A collection of components.
-        parent_system (CPS): Parent CPS that this (sub)system belongs to.
     """
 
     def __init__(self, sys_id, components):
@@ -67,8 +66,6 @@ class CPS:
     @parent_system.setter
     def parent_system(self, parent_system):
         """
-        Sets the _parent_system of this component and adds the child of the parent system.
-
         Args:
             parent_system (CPS): The new parent system.
 
