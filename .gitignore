@@ -7,6 +7,4 @@ docs/source/_autosummary/
 ml4cps/mlruns/
 /dist/
 mlruns/
-docs/source/modules.rst
-docs/source/ml4cps.*.rst
 ml4cps.egg-info/
