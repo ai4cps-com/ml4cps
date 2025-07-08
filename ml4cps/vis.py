@@ -340,17 +340,66 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
                        show_transition_data=False, node_size=20, output="cyto", dash_port=8050, min_zoom=0.5,
                        max_zoom=1, min_edge_thickness=0.1, max_edge_thickness=4, freq_as_edge_thickness=False,
                        color="black", title_text=None):
+    """    
+    Visualizes a component of a Cyber-Physical System (CPS) as a graph using Dash Cytoscape.
+    This function generates a graphical representation of the discrete states and transitions of a CPS,
+    with various customization options for node and edge appearance, labels, and output format.
+    The visualization can be rendered as Dash Cytoscape elements, in a Dash app, or as a notebook widget.
+    Parameters:
+        cps: object
+            The CPS object containing discrete states, transitions, and related data.
+        id: str, optional
+            The unique identifier for the Cytoscape component (default: "graph").
+        node_labels: bool, optional
+            Whether to display labels on nodes (default: False).
+        center_node_labels: bool, optional
+            Whether to center node labels (default: False).
+        edge_labels: bool, optional
+            Whether to display labels on edges (default: True).
+        show_transition_freq: bool, optional
+            Whether to show transition frequency on edge labels (default: False).
+        edge_font_size: int, optional
+            Font size for edge labels (default: 6).
+        edge_text_max_width: int or None, optional
+            Maximum width for edge label text wrapping (default: None).
+        init_label: bool, optional
+            Whether to label initial state transitions as 'init' (default: False).
+        show_transition_data: bool or list, optional
+            Whether to display additional transition data on edge labels. If a list, only specified keys are shown (default: False).
+        node_size: int, optional
+            Size of the nodes (default: 20).
+        output: str, optional
+            Output format: "cyto" (Dash Cytoscape Div), "elements" (raw elements), "notebook" (inline Dash app), or "dash" (Dash app in browser) (default: "cyto").
+        dash_port: int, optional
+            Port for running the Dash app (default: 8050).
+        min_zoom: float, optional
+            Minimum zoom level for the Cytoscape component (default: 0.5).
+        max_zoom: float, optional
+            Maximum zoom level for the Cytoscape component (default: 1).
+        min_edge_thickness: float, optional
+            Minimum edge thickness for frequency-based scaling (default: 0.1).
+        max_edge_thickness: float, optional
+            Maximum edge thickness for frequency-based scaling (default: 4).
+        freq_as_edge_thickness: bool, optional
+            Whether to scale edge thickness based on transition frequency (default: False).
+        color: str, optional
+            Color for nodes and edges (default: "black"). If "hsu", uses a preset color.
+        title_text: str or Dash component, optional
+            Title text or component to display above the graph (default: None).
+    Returns:
+        Dash component, dict, or Dash app:
+            - If output == "cyto": returns a Dash html.Div containing the Cytoscape graph.
+            - If output == "elements": returns a dict with 'nodes' and 'edges'.
+            - If output == "notebook": runs and displays a Dash app inline (for Jupyter).
+            - If output == "dash": runs a Dash app in the browser and returns the app instance.
+    Notes:
+        - Requires Dash, dash_cytoscape, dash_bootstrap_components, and pandas.
+        - The function supports interactive modals for displaying timing data on states and transitions.
+        - Threading is used to launch the Dash app in browser mode without blocking the main program.
+
     """
 
-    :param cps:
-    :param id:
-    :param node_labels:
-    :param edge_labels:
-    :param edge_font_size:
-    :param edge_text_max_width:
-    :param output:
-    :return:
-    """
+    
     if id is None:
         id = "graph"
 
@@ -683,19 +732,32 @@ def plot_cps_plotly(cps, layout="dot", marker_size=20, node_positions=None, show
                 show_state_label=True, font_size=10, plot_self_transitions=True, use_previos_node_positions=False,
                 **kwargs):
     """
-
-    :param cps:
-    :param layout:
-    :param marker_size:
-    :param node_positions:
-    :param show_events:
-    :param show_num_occur:
-    :param show_state_label:
-    :param font_size:
-    :param plot_self_transitions:
-    :param use_previos_node_positions:
-    :param kwargs:
-    :return:
+    Visualizes a Cyber-Physical System (CPS) state-transition graph using Plotly.
+    This function generates an interactive Plotly figure representing the states and transitions of a CPS.
+    Nodes represent system states, and edges represent transitions. Various layout algorithms and display options
+    are supported.
+    Args:
+        cps: The CPS object containing the state-transition graph. Must have attributes `_G` (networkx graph),
+            `get_transitions()`, `print_state()`, `num_occur()`, and `previous_node_positions`.
+        layout (str, optional): Layout algorithm for node positioning. Options are "dot" (default), "spectral",
+            "kamada_kawai", or "fruchterman_reingold".
+        marker_size (int, optional): Size of the node markers. Default is 20.
+        node_positions (dict, optional): Precomputed node positions as a dictionary {node: (x, y)}. If None,
+            positions are computed using the selected layout.
+        show_events (bool, optional): Whether to display event labels on transitions. Default is True.
+        show_num_occur (bool, optional): Whether to display the number of occurrences for each transition. Default is False.
+        show_state_label (bool, optional): Whether to display state labels on nodes. Default is True.
+        font_size (int, optional): Font size for transition/event labels. Default is 10.
+        plot_self_transitions (bool, optional): Whether to plot self-loop transitions. Default is True.
+        use_previos_node_positions (bool, optional): If True and node_positions is None, reuse positions from
+            `cps.previous_node_positions`. Default is False.
+        **kwargs: Additional keyword arguments passed to the layout function (e.g., for networkx layouts).
+    Returns:
+        plotly.graph_objs.Figure: A Plotly figure object representing the CPS state-transition graph.
+    Notes:
+        - Requires Plotly, NetworkX, and pydotplus (for "dot" layout).
+        - The CPS object must provide the required methods and attributes as described above.
+        - Edge and node styling can be further customized by modifying the function.
     """
     # layout = 'kamada_kawai'  # TODO
     edge_scatter_lines = None
@@ -828,6 +890,27 @@ def plot_cps_plotly(cps, layout="dot", marker_size=20, node_positions=None, show
 def view_graphviz(self, layout="dot", marker_size=20, node_positions=None, show_events=True, show_num_occur=False,
                 show_state_label=True, font_size=10, plot_self_transitions=True, use_previos_node_positions=False,
                 **kwargs):
+    """
+    Visualizes the internal graph structure using Graphviz and returns a pydot graph object.
+    Parameters:
+        layout (str): The layout algorithm to use for node positioning (default: "dot").
+        marker_size (int): Size of the node markers in the visualization (default: 20).
+        node_positions (dict or None): Optional dictionary mapping node names to (x, y) positions. If None, positions are computed.
+        show_events (bool): Whether to display event labels on transitions (default: True).
+        show_num_occur (bool): Whether to display the number of occurrences for each transition (default: False).
+        show_state_label (bool): Whether to display state labels on nodes (default: True).
+        font_size (int): Font size for labels and annotations (default: 10).
+        plot_self_transitions (bool): Whether to plot self-loop transitions (default: True).
+        use_previos_node_positions (bool): Whether to reuse previously computed node positions (default: False).
+        **kwargs: Additional keyword arguments for customization.
+    Returns:
+        pdp.Dot: A pydot graph object representing the visualized graph.
+    Notes:
+        - Node positions are either computed using Graphviz or taken from the provided/previous positions.
+        - Annotations for transitions can include event names and/or occurrence counts.
+        - The function prepares the graph for further rendering or export, but does not display it directly.
+    """
+   
     graph = None
     if node_positions is None:
         if use_previos_node_positions:
@@ -886,6 +969,20 @@ def view_graphviz(self, layout="dot", marker_size=20, node_positions=None, show_
 
 
 def plot_transition(self, s, d):
+    """
+    Plots the transition histogram between two states.
+    Retrieves the transition data between the source state `s` and destination state `d`,
+    and generates a Plotly figure visualizing the timing distribution of the transition.
+    The plot includes a title, an annotation indicating the transition, and a histogram
+    of the transition timings.
+    Args:
+        s: The source state identifier.
+        d: The destination state identifier.
+    Returns:
+        plotly.graph_objs._figure.Figure: A Plotly Figure object containing the histogram
+        of transition timings.
+    """
+
     trans = self.get_transition(s, d)
     titles = '{0} -> {1} -> {2}'.format(trans[0], trans[2], trans[1])
     fig = go.Figure()
@@ -903,6 +1000,25 @@ def plot_transition(self, s, d):
 
 
 def plot_state_transitions(ta, state, obs=None):
+    """
+    Visualizes the outgoing state transitions from a given state in a timed automaton, along with associated observation data.
+    Parameters:
+        ta: An object representing the timed automaton, expected to have an `out_transitions(state)` method that returns transitions from the given state.
+        state: The current state for which outgoing transitions and associated observations are to be visualized.
+        obs (optional): A pandas DataFrame containing observation data. Must include at least the columns 'Mode', 'q_next', 'Duration', 'Time', and optionally 'Vergussgruppe', 'HID', 'ChipID', 'Order', and 'ArtNr'. If None, the function raises NotImplemented.
+    Returns:
+        fig: A Plotly figure object containing subplots for each outgoing transition. For each transition, the function displays:
+            - A scatter plot of observation durations over time, grouped by 'Vergussgruppe'.
+            - A histogram of durations for each 'Vergussgruppe'.
+        The subplots are arranged with shared axes and appropriate titles for each transition.
+    Raises:
+        NotImplemented: If `obs` is None.
+    Notes:
+        - The function expects certain columns to exist in the `obs` DataFrame. If missing, default values are assigned.
+        - Colors for different 'Vergussgruppe' groups are assigned from `DEFAULT_PLOTLY_COLORS`.
+        - The function uses Plotly's `make_subplots`, `go.Scatter`, and `go.Histogram` for visualization.
+    """
+
     trans = ta.out_transitions(state)
     titles = []
     for k in trans:
@@ -1004,6 +1120,22 @@ def plot_state_transitions(ta, state, obs=None):
 
 
 def plot_dash_frames(graph_frames, dash_port=8050):
+    """
+    Launches an interactive Dash web application to visualize a sequence of graph frames with a slider for manual frame selection.
+    Args:
+        graph_frames (list): A list of Dash components (e.g., Cytoscape graphs) representing different frames to display.
+        dash_port (int, optional): The port number on which to run the Dash server. Defaults to 8050.
+    Returns:
+        dash.Dash: The Dash application instance.
+    Side Effects:
+        - Starts a Dash server in a separate thread.
+        - Opens the default web browser to display the Dash app.
+        - Waits for user input before returning.
+    Notes:
+        - The app displays the first frame by default and allows users to select other frames using a slider.
+        - The function blocks until the user presses Enter in the console.
+    """
+
     app = Dash(__name__)
     app.layout = html.Div(children=graph_frames[0], style={'width': '100%',
                                                            'height': '100vh',
@@ -1056,8 +1188,22 @@ def plot_dash_frames(graph_frames, dash_port=8050):
     return app
 
 def plot_execution_tree(graph, nodes_to_color, color, font_size=30):
-    # The function plots system execution in form of a graph, where horizontal position of the nodes corresponds to the
-    # node's timestamp. The tree branches vertically.
+    """
+    Plots a system execution tree as a graph, where the horizontal position of nodes corresponds to their timestamps and the tree branches vertically.
+    Args:
+        graph (networkx.DiGraph): A directed graph where each node represents a system state, and edges represent transitions. 
+            Each node should have a 'label' (str) and 'weight' (int) attribute. Node names must be timestamp strings in the format "%d/%m/%Y, %H:%M:%S".
+        nodes_to_color (list): List of node identifiers (timestamp strings) to be highlighted with a specific color.
+        color (str): The color to use for highlighting nodes in `nodes_to_color`.
+        font_size (int, optional): Font size for node labels in the visualization. Defaults to 30.
+    Returns:
+        cyto.Cytoscape: A Dash Cytoscape object representing the execution tree visualization, with nodes positioned by timestamp and colored as specified.
+    Notes:
+        - The function assumes the first node in `graph.nodes` is the starting node.
+        - Node positions are determined by the time difference from the start node (x-axis) and their 'weight' attribute (y-axis).
+        - Nodes in `nodes_to_color` are colored with the specified `color`; all others are gray.
+        - Requires the `cyto` (Dash Cytoscape) library and `datetime` module.
+    """
 
     # for ntd in nodes_to_delete:
     #     if ntd in graph:
@@ -1146,6 +1292,23 @@ def plot_execution_tree(graph, nodes_to_color, color, font_size=30):
     return cytoscapeobj
 
 def plot2d(df, x=None, y=None, mode='markers', hovercolumns=None, figure=False, **args):
+    """
+    Creates a 2D scatter or line plot using Plotly based on the provided DataFrame columns.
+    Parameters:
+        df (pd.DataFrame): The input DataFrame containing the data to plot.
+        x (str, optional): The column name to use for the x-axis.
+        y (str, optional): The column name to use for the y-axis.
+        mode (str, optional): The Plotly scatter mode (e.g., 'markers', 'lines'). Defaults to 'markers'.
+        hovercolumns (list of str, optional): List of column names to include in the hover tooltip.
+        figure (bool, optional): If True, returns a Plotly Figure object; otherwise, returns a Scatter trace. Defaults to False.
+        **args: Additional keyword arguments passed to the Plotly Scatter constructor.
+    Returns:
+        plotly.graph_objs._scatter.Scatter or plotly.graph_objs._figure.Figure:
+            The generated Plotly Scatter trace or Figure, depending on the 'figure' parameter.
+    Example:
+        plot2d(df, x='feature1', y='feature2', hovercolumns=['label'], mode='markers', figure=True)
+    """
+
     hovertemplate = f"{x}: %{{x}}<br>{y}: %{{y}}"
     customdata = None
     if hovercolumns:
@@ -1160,6 +1323,18 @@ def plot2d(df, x=None, y=None, mode='markers', hovercolumns=None, figure=False, 
 
 
 def plot_2d_contour_from_fun(fun, rangex=None, rangey=None, th=50, **kwargs):
+    """
+    Plots a 2D contour of a function over a specified range.
+    Parameters:
+        fun (callable): A function that takes a 2D array of shape (n_points, 2) and returns a 1D array of function values.
+        rangex (tuple, optional): The range for the x-axis as (min, max). Defaults to (-5, 5) if not provided.
+        rangey (tuple, optional): The range for the y-axis as (min, max). Defaults to (-5, 5) if not provided.
+        th (int, optional): Unused parameter, kept for compatibility. Defaults to 50.
+        **kwargs: Additional keyword arguments passed to the plotly.graph_objs.Contour constructor.
+    Returns:
+        plotly.graph_objs.Contour: A Plotly contour plot object representing the function values over the specified range.
+    """
+
     if rangex is None:
         rangex = (-5, 5)
 
@@ -1183,6 +1358,20 @@ def plot_2d_contour_from_fun(fun, rangex=None, rangey=None, th=50, **kwargs):
 
 
 def plot3d(df, x=None, y=None, z=None, mode='markers', hovercolumns=None, **args):
+    """
+    Creates a 3D scatter plot using Plotly's Scatter3d, with customizable axes, hover information, and additional plot arguments.
+    Parameters:
+        df (pandas.DataFrame): The data source containing columns for x, y, z, and optional hover data.
+        x (str, optional): The column name in `df` to use for the x-axis.
+        y (str, optional): The column name in `df` to use for the y-axis.
+        z (str, optional): The column name in `df` to use for the z-axis.
+        mode (str, optional): Plotly scatter mode (e.g., 'markers', 'lines'). Defaults to 'markers'.
+        hovercolumns (list of str, optional): List of column names in `df` to include in the hover tooltip.
+        **args: Additional keyword arguments passed to `go.Scatter3d`.
+    Returns:
+        plotly.graph_objs._scatter3d.Scatter3d: A Plotly 3D scatter plot object configured with the specified data and options.
+    """
+
     hovertemplate = f"{x}: %{{x}}<br>{y}: %{{y}}<br>{z}: %{{z}}"
     customdata = None
     if hovercolumns:
