@@ -41,17 +41,81 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot2d">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.vis.</span></span><span class="sig-name descname"><span class="pre">plot2d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'markers'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hovercolumns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.vis.plot2d" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Creates a 2D scatter or line plot using Plotly based on the provided DataFrame columns.
+:param df: The input DataFrame containing the data to plot.
+:type df: pd.DataFrame
+:param x: The column name to use for the x-axis.
+:type x: str, optional
+:param y: The column name to use for the y-axis.
+:type y: str, optional
+:param mode: The Plotly scatter mode (e.g., ‘markers’, ‘lines’). Defaults to ‘markers’.
+:type mode: str, optional
+:param hovercolumns: List of column names to include in the hover tooltip.
+:type hovercolumns: list of str, optional
+:param figure: If True, returns a Plotly Figure object; otherwise, returns a Scatter trace. Defaults to False.
+:type figure: bool, optional
+:param **args: Additional keyword arguments passed to the Plotly Scatter constructor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The generated Plotly Scatter trace or Figure, depending on the ‘figure’ parameter.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>plotly.graph_objs._scatter.Scatter or plotly.graph_objs._figure.Figure</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<p>plot2d(df, x=’feature1’, y=’feature2’, hovercolumns=[‘label’], mode=’markers’, figure=True)</p>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot3d">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.vis.</span></span><span class="sig-name descname"><span class="pre">plot3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'markers'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hovercolumns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.vis.plot3d" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Creates a 3D scatter plot using Plotly’s Scatter3d, with customizable axes, hover information, and additional plot arguments.
+:param df: The data source containing columns for x, y, z, and optional hover data.
+:type df: pandas.DataFrame
+:param x: The column name in <cite>df</cite> to use for the x-axis.
+:type x: str, optional
+:param y: The column name in <cite>df</cite> to use for the y-axis.
+:type y: str, optional
+:param z: The column name in <cite>df</cite> to use for the z-axis.
+:type z: str, optional
+:param mode: Plotly scatter mode (e.g., ‘markers’, ‘lines’). Defaults to ‘markers’.
+:type mode: str, optional
+:param hovercolumns: List of column names in <cite>df</cite> to include in the hover tooltip.
+:type hovercolumns: list of str, optional
+:param **args: Additional keyword arguments passed to <cite>go.Scatter3d</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A Plotly 3D scatter plot object configured with the specified data and options.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>plotly.graph_objs._scatter3d.Scatter3d</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot_2d_contour_from_fun">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.vis.</span></span><span class="sig-name descname"><span class="pre">plot_2d_contour_from_fun</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fun</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rangex</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rangey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">th</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.vis.plot_2d_contour_from_fun" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Plots a 2D contour of a function over a specified range.
+:param fun: A function that takes a 2D array of shape (n_points, 2) and returns a 1D array of function values.
+:type fun: callable
+:param rangex: The range for the x-axis as (min, max). Defaults to (-5, 5) if not provided.
+:type rangex: tuple, optional
+:param rangey: The range for the y-axis as (min, max). Defaults to (-5, 5) if not provided.
+:type rangey: tuple, optional
+:param th: Unused parameter, kept for compatibility. Defaults to 50.
+:type th: int, optional
+:param **kwargs: Additional keyword arguments passed to the plotly.graph_objs.Contour constructor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A Plotly contour plot object representing the function values over the specified range.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>plotly.graph_objs.Contour</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot_cps">
@@ -74,63 +138,219 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot_cps_component">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.vis.</span></span><span class="sig-name descname"><span class="pre">plot_cps_component</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center_node_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_transition_freq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_font_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_text_max_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_transition_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cyto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dash_port</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8050</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_zoom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_zoom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_edge_thickness</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_edge_thickness</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freq_as_edge_thickness</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title_text</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.vis.plot_cps_component" title="Link to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
+<dd><p>Visualizes a component of a Cyber-Physical System (CPS) as a graph using Dash Cytoscape.
+This function generates a graphical representation of the discrete states and transitions of a CPS,
+with various customization options for node and edge appearance, labels, and output format.
+The visualization can be rendered as Dash Cytoscape elements, in a Dash app, or as a notebook widget.
+:param cps: object</p>
+<blockquote>
+<div><p>The CPS object containing discrete states, transitions, and related data.</p>
+</div></blockquote>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>cps</strong></p></li>
-<li><p><strong>id</strong></p></li>
-<li><p><strong>node_labels</strong></p></li>
-<li><p><strong>edge_labels</strong></p></li>
-<li><p><strong>edge_font_size</strong></p></li>
-<li><p><strong>edge_text_max_width</strong></p></li>
-<li><p><strong>output</strong></p></li>
+<li><p><strong>id</strong> – str, optional
+The unique identifier for the Cytoscape component (default: “graph”).</p></li>
+<li><p><strong>node_labels</strong> – bool, optional
+Whether to display labels on nodes (default: False).</p></li>
+<li><p><strong>center_node_labels</strong> – bool, optional
+Whether to center node labels (default: False).</p></li>
+<li><p><strong>edge_labels</strong> – bool, optional
+Whether to display labels on edges (default: True).</p></li>
+<li><p><strong>show_transition_freq</strong> – bool, optional
+Whether to show transition frequency on edge labels (default: False).</p></li>
+<li><p><strong>edge_font_size</strong> – int, optional
+Font size for edge labels (default: 6).</p></li>
+<li><p><strong>edge_text_max_width</strong> – int or None, optional
+Maximum width for edge label text wrapping (default: None).</p></li>
+<li><p><strong>init_label</strong> – bool, optional
+Whether to label initial state transitions as ‘init’ (default: False).</p></li>
+<li><p><strong>show_transition_data</strong> – bool or list, optional
+Whether to display additional transition data on edge labels. If a list, only specified keys are shown (default: False).</p></li>
+<li><p><strong>node_size</strong> – int, optional
+Size of the nodes (default: 20).</p></li>
+<li><p><strong>output</strong> – str, optional
+Output format: “cyto” (Dash Cytoscape Div), “elements” (raw elements), “notebook” (inline Dash app), or “dash” (Dash app in browser) (default: “cyto”).</p></li>
+<li><p><strong>dash_port</strong> – int, optional
+Port for running the Dash app (default: 8050).</p></li>
+<li><p><strong>min_zoom</strong> – float, optional
+Minimum zoom level for the Cytoscape component (default: 0.5).</p></li>
+<li><p><strong>max_zoom</strong> – float, optional
+Maximum zoom level for the Cytoscape component (default: 1).</p></li>
+<li><p><strong>min_edge_thickness</strong> – float, optional
+Minimum edge thickness for frequency-based scaling (default: 0.1).</p></li>
+<li><p><strong>max_edge_thickness</strong> – float, optional
+Maximum edge thickness for frequency-based scaling (default: 4).</p></li>
+<li><p><strong>freq_as_edge_thickness</strong> – bool, optional
+Whether to scale edge thickness based on transition frequency (default: False).</p></li>
+<li><p><strong>color</strong> – str, optional
+Color for nodes and edges (default: “black”). If “hsu”, uses a preset color.</p></li>
+<li><p><strong>title_text</strong> – str or Dash component, optional
+Title text or component to display above the graph (default: None).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p></p>
+<dd class="field-even"><p><ul class="simple">
+<li><p>If output == “cyto”: returns a Dash html.Div containing the Cytoscape graph.</p></li>
+<li><p>If output == “elements”: returns a dict with ‘nodes’ and ‘edges’.</p></li>
+<li><p>If output == “notebook”: runs and displays a Dash app inline (for Jupyter).</p></li>
+<li><p>If output == “dash”: runs a Dash app in the browser and returns the app instance.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dash component, dict, or Dash app</p>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Requires Dash, dash_cytoscape, dash_bootstrap_components, and pandas.</p></li>
+<li><p>The function supports interactive modals for displaying timing data on states and transitions.</p></li>
+<li><p>Threading is used to launch the Dash app in browser mode without blocking the main program.</p></li>
+</ul>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot_cps_plotly">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.vis.</span></span><span class="sig-name descname"><span class="pre">plot_cps_plotly</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dot'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">marker_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_positions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_events</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_num_occur</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_state_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">font_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_self_transitions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_previos_node_positions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.vis.plot_cps_plotly" title="Link to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
+<dd><p>Visualizes a Cyber-Physical System (CPS) state-transition graph using Plotly.
+This function generates an interactive Plotly figure representing the states and transitions of a CPS.
+Nodes represent system states, and edges represent transitions. Various layout algorithms and display options
+are supported.
+:param cps: The CPS object containing the state-transition graph. Must have attributes <cite>_G</cite> (networkx graph),</p>
+<blockquote>
+<div><p><cite>get_transitions()</cite>, <cite>print_state()</cite>, <cite>num_occur()</cite>, and <cite>previous_node_positions</cite>.</p>
+</div></blockquote>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>cps</strong></p></li>
-<li><p><strong>layout</strong></p></li>
-<li><p><strong>marker_size</strong></p></li>
-<li><p><strong>node_positions</strong></p></li>
-<li><p><strong>show_events</strong></p></li>
-<li><p><strong>show_num_occur</strong></p></li>
-<li><p><strong>show_state_label</strong></p></li>
-<li><p><strong>font_size</strong></p></li>
-<li><p><strong>plot_self_transitions</strong></p></li>
-<li><p><strong>use_previos_node_positions</strong></p></li>
-<li><p><strong>kwargs</strong></p></li>
+<li><p><strong>layout</strong> (<em>str</em><em>, </em><em>optional</em>) – Layout algorithm for node positioning. Options are “dot” (default), “spectral”,
+“kamada_kawai”, or “fruchterman_reingold”.</p></li>
+<li><p><strong>marker_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Size of the node markers. Default is 20.</p></li>
+<li><p><strong>node_positions</strong> (<em>dict</em><em>, </em><em>optional</em>) – Precomputed node positions as a dictionary {node: (x, y)}. If None,
+positions are computed using the selected layout.</p></li>
+<li><p><strong>show_events</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to display event labels on transitions. Default is True.</p></li>
+<li><p><strong>show_num_occur</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to display the number of occurrences for each transition. Default is False.</p></li>
+<li><p><strong>show_state_label</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to display state labels on nodes. Default is True.</p></li>
+<li><p><strong>font_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Font size for transition/event labels. Default is 10.</p></li>
+<li><p><strong>plot_self_transitions</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to plot self-loop transitions. Default is True.</p></li>
+<li><p><strong>use_previos_node_positions</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True and node_positions is None, reuse positions from
+<cite>cps.previous_node_positions</cite>. Default is False.</p></li>
+<li><p><strong>**kwargs</strong> – Additional keyword arguments passed to the layout function (e.g., for networkx layouts).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p></p>
+<dd class="field-even"><p>A Plotly figure object representing the CPS state-transition graph.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>plotly.graph_objs.Figure</p>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Requires Plotly, NetworkX, and pydotplus (for “dot” layout).</p></li>
+<li><p>The CPS object must provide the required methods and attributes as described above.</p></li>
+<li><p>Edge and node styling can be further customized by modifying the function.</p></li>
+</ul>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot_dash_frames">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.vis.</span></span><span class="sig-name descname"><span class="pre">plot_dash_frames</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph_frames</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dash_port</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8050</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.vis.plot_dash_frames" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Launches an interactive Dash web application to visualize a sequence of graph frames with a slider for manual frame selection.
+:param graph_frames: A list of Dash components (e.g., Cytoscape graphs) representing different frames to display.
+:type graph_frames: list
+:param dash_port: The port number on which to run the Dash server. Defaults to 8050.
+:type dash_port: int, optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The Dash application instance.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dash.Dash</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Side Effects:</dt><dd><ul class="simple">
+<li><p>Starts a Dash server in a separate thread.</p></li>
+<li><p>Opens the default web browser to display the Dash app.</p></li>
+<li><p>Waits for user input before returning.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>The app displays the first frame by default and allows users to select other frames using a slider.</p></li>
+<li><p>The function blocks until the user presses Enter in the console.</p></li>
+</ul>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot_execution_tree">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.vis.</span></span><span class="sig-name descname"><span class="pre">plot_execution_tree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nodes_to_color</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">font_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.vis.plot_execution_tree" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Plots a system execution tree as a graph, where the horizontal position of nodes corresponds to their timestamps and the tree branches vertically.
+:param graph: A directed graph where each node represents a system state, and edges represent transitions.</p>
+<blockquote>
+<div><p>Each node should have a ‘label’ (str) and ‘weight’ (int) attribute. Node names must be timestamp strings in the format “%d/%m/%Y, %H:%M:%S”.</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nodes_to_color</strong> (<em>list</em>) – List of node identifiers (timestamp strings) to be highlighted with a specific color.</p></li>
+<li><p><strong>color</strong> (<em>str</em>) – The color to use for highlighting nodes in <cite>nodes_to_color</cite>.</p></li>
+<li><p><strong>font_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Font size for node labels in the visualization. Defaults to 30.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A Dash Cytoscape object representing the execution tree visualization, with nodes positioned by timestamp and colored as specified.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>cyto.Cytoscape</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>The function assumes the first node in <cite>graph.nodes</cite> is the starting node.</p></li>
+<li><p>Node positions are determined by the time difference from the start node (x-axis) and their ‘weight’ attribute (y-axis).</p></li>
+<li><p>Nodes in <cite>nodes_to_color</cite> are colored with the specified <cite>color</cite>; all others are gray.</p></li>
+<li><p>Requires the <cite>cyto</cite> (Dash Cytoscape) library and <cite>datetime</cite> module.</p></li>
+</ul>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot_state_transitions">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.vis.</span></span><span class="sig-name descname"><span class="pre">plot_state_transitions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.vis.plot_state_transitions" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Visualizes the outgoing state transitions from a given state in a timed automaton, along with associated observation data.
+:param ta: An object representing the timed automaton, expected to have an <cite>out_transitions(state)</cite> method that returns transitions from the given state.
+:param state: The current state for which outgoing transitions and associated observations are to be visualized.
+:param obs: A pandas DataFrame containing observation data. Must include at least the columns ‘Mode’, ‘q_next’, ‘Duration’, ‘Time’, and optionally ‘Vergussgruppe’, ‘HID’, ‘ChipID’, ‘Order’, and ‘ArtNr’. If None, the function raises NotImplemented.
+:type obs: optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>A Plotly figure object containing subplots for each outgoing transition. For each transition, the function displays:</dt><dd><ul class="simple">
+<li><p>A scatter plot of observation durations over time, grouped by ‘Vergussgruppe’.</p></li>
+<li><p>A histogram of durations for each ‘Vergussgruppe’.</p></li>
+</ul>
+</dd>
+</dl>
+<p>The subplots are arranged with shared axes and appropriate titles for each transition.</p>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>fig</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>NotImplemented</strong> – If <cite>obs</cite> is None.</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>The function expects certain columns to exist in the <cite>obs</cite> DataFrame. If missing, default values are assigned.</p></li>
+<li><p>Colors for different ‘Vergussgruppe’ groups are assigned from <cite>DEFAULT_PLOTLY_COLORS</cite>.</p></li>
+<li><p>The function uses Plotly’s <cite>make_subplots</cite>, <cite>go.Scatter</cite>, and <cite>go.Histogram</cite> for visualization.</p></li>
+</ul>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot_stateflow">
@@ -171,12 +391,62 @@ yAxisLabelOffset (bool): if True, adds an offset to the plots y-axis labels. Imp
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.plot_transition">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.vis.</span></span><span class="sig-name descname"><span class="pre">plot_transition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.vis.plot_transition" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Plots the transition histogram between two states.
+Retrieves the transition data between the source state <cite>s</cite> and destination state <cite>d</cite>,
+and generates a Plotly figure visualizing the timing distribution of the transition.
+The plot includes a title, an annotation indicating the transition, and a histogram
+of the transition timings.
+:param s: The source state identifier.
+:param d: The destination state identifier.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A Plotly Figure object containing the histogram
+of transition timings.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>plotly.graph_objs._figure.Figure</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.vis.view_graphviz">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.vis.</span></span><span class="sig-name descname"><span class="pre">view_graphviz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dot'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">marker_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_positions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_events</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_num_occur</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_state_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">font_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_self_transitions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_previos_node_positions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.vis.view_graphviz" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Visualizes the internal graph structure using Graphviz and returns a pydot graph object.
+:param layout: The layout algorithm to use for node positioning (default: “dot”).
+:type layout: str
+:param marker_size: Size of the node markers in the visualization (default: 20).
+:type marker_size: int
+:param node_positions: Optional dictionary mapping node names to (x, y) positions. If None, positions are computed.
+:type node_positions: dict or None
+:param show_events: Whether to display event labels on transitions (default: True).
+:type show_events: bool
+:param show_num_occur: Whether to display the number of occurrences for each transition (default: False).
+:type show_num_occur: bool
+:param show_state_label: Whether to display state labels on nodes (default: True).
+:type show_state_label: bool
+:param font_size: Font size for labels and annotations (default: 10).
+:type font_size: int
+:param plot_self_transitions: Whether to plot self-loop transitions (default: True).
+:type plot_self_transitions: bool
+:param use_previos_node_positions: Whether to reuse previously computed node positions (default: False).
+:type use_previos_node_positions: bool
+:param **kwargs: Additional keyword arguments for customization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A pydot graph object representing the visualized graph.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>pdp.Dot</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Node positions are either computed using Graphviz or taken from the provided/previous positions.</p></li>
+<li><p>Annotations for transitions can include event names and/or occurrence counts.</p></li>
+<li><p>The function prepares the graph for further rendering or export, but does not display it directly.</p></li>
+</ul>
+</dd></dl>
 
 </section>
 

@@ -42,65 +42,415 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.FnDetectChangePoints">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">FnDetectChangePoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">udout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xout_shifts</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.FnDetectChangePoints" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Detects change points in output and input variables, filters them, and constructs a trace structure.
+This function analyzes the provided output (<cite>xout</cite>) and input (<cite>udout</cite>) data to detect change points
+using the <cite>findChangePoints</cite> function. It processes both output and input variables, aggregates and filters
+the detected change points, and returns a structured trace dictionary containing the processed data and
+change point information.
+:param xout: Output data array of shape (n_samples, n_outputs).
+:type xout: np.ndarray
+:param udout: Input data array of shape (n_samples, n_inputs).
+:type udout: np.ndarray
+:param xout_shifts: Shifted output data array, used for further processing.
+:type xout_shifts: np.ndarray</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>A dictionary with the following keys:</dt><dd><ul class="simple">
+<li><p>’x’: Filtered output data array.</p></li>
+<li><p>’xs’: Filtered shifted output data array.</p></li>
+<li><p>’chpoints’: Array of global change points detected across all variables.</p></li>
+<li><p>’chpoints_per_var’: List of arrays, each containing change points for a specific variable.</p></li>
+<li><p>’ud’: Filtered input data array.</p></li>
+<li><p>’labels_num’: Empty list (reserved for numeric labels).</p></li>
+<li><p>’labels_trace’: Empty list (reserved for trace labels).</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Relies on global variables: <cite>num_var</cite>, <cite>num_ud</cite>, <cite>max_deriv</cite>, and <cite>chp_depths</cite>.</p></li>
+<li><p>Uses external functions: <cite>findChangePoints</cite> and <cite>filterChangePoints</cite>.</p></li>
+<li><p>The function is intended for use in time-series or sequential data analysis where detecting
+significant changes in variable values is required.</p></li>
+</ul>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.FnShiftAndDiff">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">FnShiftAndDiff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">udout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm_coeff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_var</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_ud</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_deriv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ts</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.FnShiftAndDiff" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Normalizes and processes state and input data by generating shifted versions and computing derivatives.
+This function performs the following operations:
+1. Normalizes the state output <cite>xout</cite> using the provided normalization coefficients.
+2. Generates shifted duplicates of <cite>xout</cite> up to the specified maximum derivative order.
+3. Computes numerical derivatives of <cite>xout</cite> up to <cite>max_deriv</cite> order and appends them to the state data.
+4. Strips the initial entries from <cite>xout</cite> and the shifted data to account for the derivative computation.
+5. Normalizes the input data <cite>udout</cite> (if present) and strips initial entries to match the processed state data.
+:param xout: State output data of shape (n_samples, num_var).
+:type xout: np.ndarray
+:param udout: Input data of shape (n_samples, num_ud).
+:type udout: np.ndarray
+:param norm_coeff: Normalization coefficients of shape (num_var + num_ud, 1).
+:type norm_coeff: np.ndarray
+:param num_var: Number of state variables.
+:type num_var: int
+:param num_ud: Number of input variables.
+:type num_ud: int
+:param max_deriv: Maximum order of derivatives to compute.
+:type max_deriv: int
+:param Ts: Sampling time interval.
+:type Ts: float</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p>xout (np.ndarray): Processed and augmented state data with derivatives, shape (n_samples - max_deriv, …).</p></li>
+<li><p>udout (np.ndarray): Normalized input data, shape (n_samples - max_deriv, num_ud).</p></li>
+<li><p>xout_shifts (pd.DataFrame): Shifted duplicates of the normalized state data, shape (n_samples - max_deriv, …).</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple[np.ndarray, np.ndarray, pd.DataFrame]</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>The function assumes that <cite>xout</cite> and <cite>udout</cite> are NumPy arrays and that <cite>xout</cite> has at least <cite>max_deriv</cite> rows.</p></li>
+<li><p>The normalization coefficients should be provided for both state and input variables.</p></li>
+<li><p>The function uses zero-padding for shifted and derivative computations.</p></li>
+</ul>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.FnTraceToTrainingData">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">FnTraceToTrainingData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trace</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_var</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_ud</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">useTime</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.FnTraceToTrainingData" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Converts a trace dictionary into training data suitable for machine learning models.
+:param trace: A dictionary containing the following keys:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>‘x’ (np.ndarray): Array of system variables over time (shape: [timesteps, num_var]).</p></li>
+<li><p>‘ud’ (np.ndarray): Array of user-defined variables over time (shape: [timesteps, num_ud]).</p></li>
+<li><p>‘labels_trace’ (np.ndarray): Array of state labels for each segment.</p></li>
+<li><p>‘chpoints’ (list or np.ndarray): Indices indicating change points (state switches) in the trace.</p></li>
+</ul>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_var</strong> (<em>int</em>) – Number of system variables to include in the feature vector.</p></li>
+<li><p><strong>num_ud</strong> (<em>int</em>) – Number of user-defined variables to include in the feature vector.</p></li>
+<li><p><strong>useTime</strong> (<em>bool</em>) – If True, includes the time since the last state switch as a feature.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Feature matrix where each row corresponds to a time step and contains:</dt><dd><ul class="simple">
+<li><p>Current state label</p></li>
+<li><p>System variables</p></li>
+<li><p>User-defined variables (if num_ud &gt; 0)</p></li>
+<li><p>Time since last state switch (if useTime is True)</p></li>
+</ul>
+</dd>
+</dl>
+<p>Y (np.ndarray): Array of next state labels (class labels) for each feature vector in X.
+states (np.ndarray): Array of state labels for each time step in the trace.</p>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>X (np.ndarray)</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>The function skips the last time step in the trace for feature construction, as it cannot form a (X, Y) pair.</p></li>
+<li><p>The function assumes that the trace data is properly aligned and that ‘chpoints’ and ‘labels_trace’ are consistent.</p></li>
+</ul>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.build_pta">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">build_pta</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'event'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundaries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.build_pta" title="Link to this definition">¶</a></dt>
-<dd><p>In the function build_pta the prefix tree acceptor is created by going through each sequence of events in the
-learning examples. Also, the depth, in- and out-degree of the states are set.</p>
+<dd><p>Builds a Prefix Tree Acceptor (PTA) from a collection of event sequences.
+This function constructs a PTA by iterating through each sequence of events in the provided data.
+It adds states and transitions to the automaton based on the observed event sequences,
+and sets the depth, in-degree, and out-degree of the states. The PTA is useful for learning
+automata from positive examples.
+:param data: An iterable of event sequences. Each sequence can be a pandas DataFrame,</p>
+<blockquote>
+<div><p>pandas Series, or string. If a DataFrame, it should contain at least a time column and
+an event column.</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>event_col</strong> (<em>str</em><em>, </em><em>optional</em>) – The name of the column containing event labels in the input
+DataFrame or Series. Defaults to ‘event’.</p></li>
+<li><p><strong>boundaries</strong> (<em>int</em><em> or </em><em>dict</em><em>, </em><em>optional</em>) – Not currently used in the function, but intended for
+handling event boundaries or timing constraints. Defaults to 1.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The constructed Prefix Tree Acceptor representing the input event sequences.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="ml4cps.automata.base.html#ml4cps.automata.base.Automaton" title="ml4cps.automata.base.Automaton">Automaton</a></p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>The function expects the presence of an <cite>Automaton</cite> class with methods for adding states,
+transitions, and final states.</p></li>
+<li><p>If a sequence is a string, it is converted to a pandas Series of characters.</p></li>
+<li><p>Timing information (dt) is calculated as the difference between consecutive time steps.</p></li>
+<li><p>The function skips empty sequences.</p></li>
+</ul>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.computeDistance">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">computeDistance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">der</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.computeDistance" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Computes a distance metric over a sliding window for a given derivative array.
+For each position in the input array <cite>der</cite>, the function calculates the sum of absolute differences
+between two windows of size <cite>windowSize</cite> before and after the current position, after normalizing
+each window by subtracting its first element. The result is an array of distances.
+:param der: The input array (e.g., derivative values) over which to compute the distance.
+:type der: np.ndarray</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>An array containing the computed distances for each valid position.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.filterChangePoints">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">filterChangePoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">udout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xout_shifts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chpoints</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chp_var</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.filterChangePoints" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Filters and synchronizes detected changepoints in time series data across multiple variables.
+This function processes global and local changepoint indices to ensure consistency and remove redundant or closely spaced changepoints. It updates the provided data arrays and changepoint lists accordingly.
+:param xout: Output variable time series data (samples x variables).
+:type xout: np.ndarray
+:param udout: Input variable time series data (samples x variables), or an empty array if not used.
+:type udout: np.ndarray
+:param xout_shifts: Shifted output variable data (samples x variables).
+:type xout_shifts: np.ndarray
+:param chpoints: List of global changepoint indices.
+:type chpoints: list or np.ndarray
+:param chp_var: List containing arrays of changepoint indices for each variable.
+:type chp_var: list of np.ndarray</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p>xout (np.ndarray): Filtered output variable data.</p></li>
+<li><p>udout (np.ndarray): Filtered input variable data.</p></li>
+<li><p>xout_shifts (np.ndarray): Filtered shifted output variable data.</p></li>
+<li><p>chpoints (np.ndarray): Filtered and synchronized global changepoint indices.</p></li>
+<li><p>chp_var (list of np.ndarray): Updated list of changepoint indices for each variable.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Uses global variables: windowSize, num_var, num_ud.</p></li>
+<li><p>Assumes that changepoints are sorted and that there are at least two changepoints.</p></li>
+<li><p>The function modifies chp_var in place.</p></li>
+</ul>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.filterindx">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">filterindx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">indx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">windw</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.filterindx" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Filters out indices from the input array that are within a specified window of each other.
+Given a sorted array of indices, this function removes any index that is within <cite>windw</cite> distance
+from its predecessor, keeping only the first occurrence in each window.
+:param indx: A sorted array or list of integer indices.
+:type indx: array-like
+:param windw: The minimum allowed distance between consecutive indices.
+:type windw: int</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The filtered array of indices, where no two indices are within <cite>windw</cite> of each other.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>numpy.ndarray</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">filterindx</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">12</span><span class="p">]),</span> <span class="mi">2</span><span class="p">)</span>
+<span class="go">array([ 1, 10, 12])</span>
+</pre></div>
+</div>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.findChangePoints">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">findChangePoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ending</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_depth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.findChangePoints" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Recursively detects change points in a multi-dimensional signal using a hierarchical approach.
+This function analyzes a segment of the input array <cite>xout</cite> at a given <cite>depth</cite> (dimension),
+computes a distance metric to identify potential change points (peaks), and then recursively
+searches for further change points in subsegments at deeper levels. The recursion stops when
+the maximum depth is reached or the segment is too small.
+:param xout: The input array containing the signal or features to analyze. Expected shape is (n_samples, n_features).
+:type xout: np.ndarray
+:param depth: The current depth (dimension) being analyzed.
+:type depth: int
+:param starting: The starting index of the segment to analyze.
+:type starting: int
+:param ending: The ending index (exclusive) of the segment to analyze.
+:type ending: int
+:param max_depth: The maximum depth (dimension) to analyze.
+:type max_depth: int</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>An array of indices representing detected change points within the specified segment.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Uses global variables <cite>windowSize</cite> and <cite>chp_depths</cite> for windowing and tracking change points per depth.</p></li>
+<li><p>Utilizes <cite>computeDistance</cite>, <cite>find_peaks</cite>, and <cite>filterindx</cite> helper functions.</p></li>
+<li><p>At the top level (depth == 0), prepends and appends boundary indices to the result.</p></li>
+</ul>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.rpni">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">rpni</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">positive_samples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">negative_samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.rpni" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Implements the RPNI (Regular Positive and Negative Inference) algorithm for learning a DFA from positive and negative samples.
+:param positive_samples: A collection of strings that should be accepted by the learned DFA.
+:type positive_samples: Iterable[str]
+:param negative_samples: A collection of strings that should be rejected by the learned DFA.
+:type negative_samples: Iterable[str]</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A deterministic finite automaton (DFA) that accepts all positive samples and rejects all negative samples.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>DFA</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>The function first constructs a Prefix Tree Acceptor (PTA) from the positive samples.</p></li>
+<li><p>It then attempts to merge states in the DFA, ensuring that no negative sample is accepted after each merge.</p></li>
+<li><p>The merging process is guided by the constraint that all negative samples must be rejected.</p></li>
+</ul>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.simple_learn_from_event_logs">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">simple_learn_from_event_logs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count_repetition</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.simple_learn_from_event_logs" title="Link to this definition">¶</a></dt>
-<dd><p>Simple algorithm to learn a timed automaton.</p>
+<dd><p>Simple algorithm to learn a timed automaton from event log data.
+This function constructs a timed automaton by iterating over sequences of timestamped events.
+Each event sequence is treated as a trace, and transitions are created between states based on event occurrences and their timing.
+States are determined by the emitted events, optionally including repetition counts.
+The automaton can be initialized with an explicit initial state, and transitions can account for repeated events.
+:param data: A list of event sequences, where each sequence is a pandas Series with timestamps as indices and event labels as values.
+:type data: list or pandas.Series
+:param initial: If True, adds an explicit ‘initial’ state to the automaton. Defaults to True.
+:type initial: bool, optional
+:param count_repetition: If True, distinguishes states and transitions by counting consecutive repetitions of the same event. Defaults to True.
+:type count_repetition: bool, optional
+:param verbose: If True, prints detailed information about the learning process. Defaults to False.
+:type verbose: bool, optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The learned timed automaton object.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="ml4cps.automata.base.html#ml4cps.automata.base.Automaton" title="ml4cps.automata.base.Automaton">Automaton</a></p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Each sequence in <cite>data</cite> should be a pandas Series indexed by timestamps.</p></li>
+<li><p>If a sequence contains fewer than two events, it is skipped.</p></li>
+<li><p>The function assumes the existence of an <cite>Automaton</cite> class with <cite>add_initial_state</cite> and <cite>add_single_transition</cite> methods.</p></li>
+</ul>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.simple_learn_from_signal_updates">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">simple_learn_from_signal_updates</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sig_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.simple_learn_from_signal_updates" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Learns a timed automaton from sequences of signal updates.
+This function processes a list of dataframes, each representing a sequence of signal updates over time.
+For each sequence, it constructs states based on the values of the specified signals and adds transitions
+to an Automaton object whenever a signal value changes.
+:param data: List of dataframes, each containing time-stamped signal updates.</p>
+<blockquote>
+<div><p>The first column is assumed to be the time column, and subsequent columns correspond to signal names.</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sig_names</strong> (<em>list</em><em> of </em><em>str</em>) – List of signal names to track and use for state construction.</p></li>
+<li><p><strong>initial</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, adds an initial state to the automaton for each sequence. Defaults to True.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, prints detailed information about the learning process. Defaults to False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The learned automaton with states and transitions based on the observed signal updates.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="ml4cps.automata.base.html#ml4cps.automata.base.Automaton" title="ml4cps.automata.base.Automaton">Automaton</a></p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Each state is represented as a dictionary mapping signal names to their current values.</p></li>
+<li><p>Transitions are added only when all signal values are set (i.e., not None).</p></li>
+<li><p>The event label for each transition is formatted as ‘&lt;signal_name&gt;&lt;-&lt;value&gt;’.</p></li>
+<li><p>The transition is annotated with the time difference (delta_t) between consecutive events.</p></li>
+</ul>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ml4cps.automata.learn.simple_learn_from_signal_vectors">
 <span class="sig-prename descclassname"><span class="pre">ml4cps.automata.learn.</span></span><span class="sig-name descname"><span class="pre">simple_learn_from_signal_vectors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sig_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_no_changes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ml4cps.automata.learn.simple_learn_from_signal_vectors" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Learns a timed automaton from a list of signal vector dataframes.
+This function processes sequences of signal vectors (as pandas DataFrames), detects changes in the specified
+signal columns, and constructs a timed automaton by adding transitions for each detected event.
+:param data: List of DataFrames, each representing a sequence of signal vectors.</p>
+<blockquote>
+<div><p>The first column is assumed to be the time column, and the remaining columns are signal values.</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sig_names</strong> (<em>list</em><em> of </em><em>str</em>) – List of column names in the DataFrame that correspond to the signals to be considered for state transitions.</p></li>
+<li><p><strong>drop_no_changes</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, rows where no signal changes occur are dropped before processing. Default is False.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, prints detailed information about the learning process. Default is False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>An Automaton object constructed from the observed transitions in the input data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="ml4cps.automata.base.html#ml4cps.automata.base.Automaton" title="ml4cps.automata.base.Automaton">Automaton</a></p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Each transition in the automaton corresponds to a change in the signal vector, with the event label
+representing the difference between consecutive signal vectors and the transition time as the time delta.</p></li>
+<li><p>The function assumes that the Automaton class and its add_single_transition method are defined elsewhere.</p></li>
+</ul>
+</dd></dl>
 
 </section>
 
