@@ -18,30 +18,30 @@ def simple_conveyor_8_states():
     def time_fun():
         return np.random.normal(1, 0.1)
 
-    A = Automaton(id="Simple Conveyor", dt=0.01, states=["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"],
-                  transitions=[dict(source="s1", dest="s2", event="Place Item", prob=1, time=time_fun),
-                               dict(source="s2", dest="s1", event="Take Item", prob=1, time=time_fun),
-                               dict(source="s7", dest="s8", event="Place Item", prob=1, time=time_fun),
-                               dict(source="s8", dest="s7", event="Take Item", prob=1, time=time_fun),
-                               dict(source="s1", dest="s4", event="Move Downward", prob=1, time=time_fun),
-                               dict(source="s4", dest="s7", event="Stop Movement", prob=1, time=time_fun),
-                               dict(source="s7", dest="s3", event="Move Upward", prob=1, time=time_fun),
-                               dict(source="s3", dest="s1", event="Stop Movement", prob=1, time=time_fun),
-                               dict(source="s2", dest="s6", event="Move Downward", prob=1, time=time_fun),
-                               dict(source="s6", dest="s8", event="Stop Movement", prob=1, time=time_fun),
-                               dict(source="s8", dest="s5", event="Move Upward", prob=1, time=time_fun),
-                               dict(source="s5", dest="s2", event="Stop Movement", prob=1, time=time_fun)])
+    A = Automaton(id="Simple Conveyor", dt=0.01, initial_q="q1", states=["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"],
+                  transitions=[dict(source="q1", destination="q2", event="Place Item", prob=1, time=time_fun),
+                               dict(source="q2", destination="q1", event="Take Item", prob=1, time=time_fun),
+                               dict(source="q7", destination="q8", event="Place Item", prob=1, time=time_fun),
+                               dict(source="q8", destination="q7", event="Take Item", prob=1, time=time_fun),
+                               dict(source="q1", destination="q4", event="Move Downward", prob=1, time=time_fun),
+                               dict(source="q4", destination="q7", event="Stop Movement", prob=1, time=time_fun),
+                               dict(source="q7", destination="q3", event="Move Upward", prob=1, time=time_fun),
+                               dict(source="q3", destination="q1", event="Stop Movement", prob=1, time=time_fun),
+                               dict(source="q2", destination="q6", event="Move Downward", prob=1, time=time_fun),
+                               dict(source="q6", destination="q8", event="Stop Movement", prob=1, time=time_fun),
+                               dict(source="q8", destination="q5", event="Move Upward", prob=1, time=time_fun),
+                               dict(source="q5", destination="q2", event="Stop Movement", prob=1, time=time_fun)])
 
     def discrete_output_fun(q, xt, xk):
         state_dict = {
-            "s1": [0, 0],
-            "s2": [0, 0],
-            "s3": [0, 1],
-            "s4": [1, 0],
-            "s5": [0, 1],
-            "s6": [1, 0],
-            "s7": [0, 0],
-            "s8": [0, 0]
+            "q1": [0, 0],
+            "q2": [0, 0],
+            "q3": [0, 1],
+            "q4": [1, 0],
+            "q5": [0, 1],
+            "q6": [1, 0],
+            "q7": [0, 0],
+            "q8": [0, 0]
         }
         return np.array(state_dict[q])
 
@@ -49,14 +49,14 @@ def simple_conveyor_8_states():
         std = 0.04
         cov = np.array([[1, 0], [0, 1]])
         mean_dict = {
-            "s1": [0, 0],
-            "s2": [0, 0.5],
-            "s3": [0.5, 0.2],
-            "s4": [0.5, 0.2],
-            "s5": [0.2, 0.9],
-            "s6": [0.2, 0.9],
-            "s7": [0, 0],
-            "s8": [0, 0.5]
+            "q1": [0, 0],
+            "q2": [0, 0.5],
+            "q3": [0.5, 0.2],
+            "q4": [0.5, 0.2],
+            "q5": [0.2, 0.9],
+            "q6": [0.2, 0.9],
+            "q7": [0, 0],
+            "q8": [0, 0.5]
         }
         mean = mean_dict[q]
         f = np.random.multivariate_normal(mean, std**2 * cov)
@@ -69,7 +69,7 @@ def simple_conveyor_8_states():
     A.output_y = continuous_output_fun
     A.time_discrete_dynamics = time_discrete_dynamics_fun
 
-    A.reinitialize(0, state=("s1", (), ()))  # state is (q, xt, xk)
+    A.reinitialize(0, state=("q1", (), ()))  # state is (q, xt, xk)
     return A
 
 
@@ -144,39 +144,97 @@ def buck_converter():
     return model, data
 
 
-def conveyor_system_sfowl(variable_type="all"):
+def conveyor_system_sfowl(split=False):
     """
     Conveyor system of SFOWL.
     """
-    columns_16bit = ['O_w_HAL_Ctrl', 'O_w_HAR_Ctrl']
 
     file_path = os.path.dirname(os.path.abspath(__file__))
     log1 = pd.read_csv(os.path.join(file_path, "data", "log1.csv"))
     log2 = pd.read_csv(os.path.join(file_path, "data", "log2.csv"))
     data = [log1, log2]
 
-    cont_cols = [c for c in data[0].columns if c.lower()[-5:] != '_ctrl' and c != "timestamp" and 'energy' not in c and
-                 "energie" not in c]
-    discrete_cols = [c for c in data[0].columns if '_Ctrl' in c]
+    # Rename columns
+    for l in data:
+        rename_dict = {}
+        for c in l.columns:
+            new_c = c
+            new_c = new_c.replace('I_w_', '')
+            new_c = new_c.replace('O_w_', '')
+            new_c = new_c.replace('_Axis', '')
+            new_c = new_c.replace('BLO', 'LH1').replace('BHL', 'LH2').replace('BHR', 'RH2').replace('BRU', 'RH1')
+            new_c = new_c.replace('HAR', 'RV').replace('HAL', 'LV')
+            new_c = new_c.replace('HR', 'RV').replace('HL', 'LV')
+            new_c = new_c.replace('Weg', 'position').replace('Ctrl', 'ctrl')
+            rename_dict[c] = new_c
+        l.rename(columns=rename_dict, inplace=True)
+        l.drop(columns=[c for c in l.columns if 'energie' in c], inplace=True)
+
+    cont_cols = [c for c in data[0].columns if ('position' in c) or ('power' in c) or ('voltage' in c) or
+                 ('current' in c)]
+    discrete_cols = [c for c in data[0].columns if '_ctrl' in c]
     # num_bits = {c: max([math.ceil(math.log2(d[c].max())) for d in data]) for c in discrete_cols}
 
+    # Adding the Path/Weg variable
+    new_data = []
     for d in data:
-        d.drop(columns=[c for c in d.columns if "energy" in c or "energie" in c], axis=1, inplace=True)
+        d['timestamp_new'] = (datetime.datetime(1, 1, 1)) + d['timestamp'].apply(
+            lambda x: datetime.timedelta(seconds=x))
+        d['timestamp'] = pd.to_datetime(d['timestamp_new'])
+        d.drop(['timestamp_new'], axis=1, inplace=True)
+        d.set_index('timestamp', inplace=True)
+
+        d[cont_cols] = d[cont_cols].astype(float)
+        for c in ['LH1_ctrl', 'LH2_ctrl', 'RH1_ctrl', 'RH2_ctrl']:
+            d[c] = d[c].replace({0: "Stop", 1: "Right", 3: "Left"}).astype(str)
+        for c in ['LV_ctrl', 'RV_ctrl']:
+            d[c] = d[c].replace({2048: "Stop", 6144: "Move"}).astype(str)
+
+        # d[discrete_cols] = d[discrete_cols].astype(str)
+        # control_sig_1 = d['O_w_BRU_Axis_Ctrl_1'].to_numpy()
+        # control_sig_3 = d['O_w_BRU_Axis_Ctrl_3'].to_numpy()
+        ind = (((d['LH1_ctrl'] == 'Left') & (d['LH1_ctrl'].shift(-1) == 'Right')) |
+               ((d['RH1_ctrl'] == 'Right') & (d['RH1_ctrl'].shift(-1) == 'Left')))
+        ind = np.nonzero(ind)[0] + 1
+        ind = [0] + list(ind) + [d.shape[0]]
+        d["Path"] = 0.
+        for n in range(len(ind) - 1):
+            # cc = c.iloc[ind[n]:ind[n + 1]].copy()
+            seq = d.iloc[ind[n]:min(ind[n + 1], d.shape[0]),:]
+            time_diff = seq.index[-1] - seq.index[0]
+            if time_diff < datetime.timedelta(seconds=7): # Path 3 or 4
+                if seq['LH1_ctrl'].iloc[-1] == 'Left':
+                    d.iloc[ind[n]:ind[n + 1], d.columns.get_loc('Path')] = 3
+                else:
+                    d.iloc[ind[n]:ind[n + 1], d.columns.get_loc('Path')] = 4
+            else: # Path 1 or 2
+                if seq['LH1_ctrl'].iloc[-1] == 'Left':
+                    d.iloc[ind[n]:ind[n + 1], d.columns.get_loc('Path')] = 1
+                else:
+                    d.iloc[ind[n]:ind[n + 1], d.columns.get_loc('Path')] = 2
+        # Identify where the Path value changes
+        group_ids = (d['Path'] != d['Path'].shift()).cumsum()
+
+        # Group by the change ID
+        groups = [group for _, group in d.groupby(group_ids)]
+        new_data += groups
+    discrete_cols.append("Path")
 
     # reformat timestamp
-    for i, log in enumerate(data):
-        log['timestamp_new'] = (datetime.datetime(1, 1, 1)) + log['timestamp'].apply(lambda x: datetime.timedelta(seconds=x))
-        log['timestamp'] = pd.to_datetime(log['timestamp_new'])
-        log.drop(['timestamp_new'], axis=1, inplace=True)
+    # for i, log in enumerate(data):
+    #     log['timestamp_new'] = (datetime.datetime(1, 1, 1)) + log['timestamp'].apply(lambda x: datetime.timedelta(seconds=x))
+    #     log['timestamp'] = pd.to_datetime(log['timestamp_new'])
+    #     log.drop(['timestamp_new'], axis=1, inplace=True)
+    #     log.set_index('timestamp', inplace=True)
 
 
         # series_16bit = log[col].apply(lambda x: list(format(x, f'{num_bits[col]:03d}b')))
         # binary_df = pd.DataFrame(series_16bit.tolist(), columns=[f'{col}_bit_{i}' for i in range(num_bits[col])]).astype(int)
         # data[i].drop([col], axis=1, inplace=True)
         # data[i] = pd.concat([data[i], binary_df], axis=1)
-    data = tools.encode_nominal_list_df(data, columns=discrete_cols)
+    # data = tools.encode_nominal_list_df(data, columns=discrete_cols)
 
-    discrete_cols = [c for c in data[0].columns if '_Ctrl' in c]
+    # discrete_cols = [c for c in data[0].columns if '_Ctrl' in c]
 
     # remove constant bits
     # constant_cols = [c for c in discrete_cols if 1 == len(set(item for sublist in ([d[c].unique() for d in data]) for item in sublist))]
@@ -184,32 +242,24 @@ def conveyor_system_sfowl(variable_type="all"):
     #     d.drop(columns=constant_cols, axis=1, inplace=True)
     # discrete_cols = [d for d in discrete_cols if d not in constant_cols]
 
+    # discrete_cols = ['LH1_ctrl', 'LH2_ctrl', 'LV_ctrl', 'RV_ctrl', 'RH2_ctrl', 'RH1_ctrl', 'Path']
+    discr_data = [d[discrete_cols] for d in new_data]
+    cont_data = [d[cont_cols] for d in new_data]
 
-    # Adding the Path/Weg variable
-    for d in data:
-        d[cont_cols] = d[cont_cols].astype(float)
-        d[discrete_cols] = d[discrete_cols].astype(float)
-        control_sig_1 = d['O_w_BRU_Axis_Ctrl_1'].to_numpy()
-        control_sig_3 = d['O_w_BRU_Axis_Ctrl_3'].to_numpy()
-        ind = np.logical_and(control_sig_1[0:-1] == 1, control_sig_3[1:] == 1)
-        ind = np.nonzero(ind)[0] + 1
-        ind = [0] + list(ind) + [d.shape[0]]
-        d["Weg"] = 0.
-        for n in range(len(ind) - 1):
-            # cc = c.iloc[ind[n]:ind[n + 1]].copy()
-            time_diff = d['timestamp'].iloc[min(ind[n+1], d.shape[0]-1)] - d['timestamp'].iloc[ind[n]]
-            if time_diff < datetime.timedelta(seconds=13.5):
-                d.iloc[ind[n]:ind[n + 1], d.columns.get_loc("Weg")] = 1
-    discrete_cols.append("Weg")
+    for d in discr_data:
+        d.index -= d.index[0]
+        d.index = d.index.total_seconds()
+    for d in cont_data:
+        d.index -= d.index[0]
+        d.index = d.index.total_seconds()
 
-    if variable_type == "discrete":
-        discrete_data = [d[['timestamp'] + discrete_cols] for d in data]
-        return discrete_data, "timestamp", discrete_cols
-    elif variable_type == "continuous":
-        cont_data = [d[['timestamp'] + cont_cols] for d in data]
-        return cont_data, "timestamp", cont_cols
-    else:
-        return data, "timestamp", discrete_cols, cont_cols
+    if split:
+        n = len(discr_data)
+        n_train = int(n * 0.70)
+        n_valid = int(n * 0.15)
+        discr_data = (discr_data[:n_train], discr_data[n_train:n_train+n_valid], discr_data[n_train+n_valid:])
+        cont_data = (cont_data[:n_train], cont_data[n_train:n_train + n_valid], cont_data[n_train + n_valid:])
+    return discr_data, cont_data
 
 
 class TunnelOven (Automaton):
@@ -269,20 +319,21 @@ def tunnel_oven(complexity='111'):
 
 
 if __name__ == "__main__":
-    discrete_data, timestamp_col, discrete_vars = conveyor_system_sfowl("discrete")
-    discrete_data[0]
+    # discrete_data, timestamp_col, discrete_vars = conveyor_system_sfowl("discrete")
+    # discrete_data[0]
 
 
     conv = simple_conveyor_8_states()
     # vis.plot_cps_component(conv, output="dash", min_zoom=3, max_zoom=3, node_labels=True, center_node_labels=True)
 
-    stateflow_data, discr_output_data, cont_state_data, cont_output_data, finish_time = conv.simulate(finish_time=100)
+    stateflow_data, discr_output_data, cont_state_data, cont_output_data, finish_time = conv.simulate(finish_time=10)
     # vis.plot_timeseries(discr_output_data, modedata=stateflow_data, showlegend=True, discrete=True).show()
-    vis.plot_timeseries(cont_output_data, modedata=stateflow_data, showlegend=True).show()
+    # vis.plot_timeseries(cont_output_data, modedata=stateflow_data, showlegend=True).show()
+    vis.plot_timeseries([cont_output_data], showlegend=True).show('browser')
     fig = vis.plot2d(cont_output_data, x=cont_output_data.columns[-2], y=cont_output_data.columns[-1], figure=True)
     fig.update_layout(xaxis=dict(scaleanchor='y', scaleratio=1),
                       yaxis=dict(scaleanchor='x', scaleratio=1))
-    fig.show()
+    fig.show('browser')
 
 
     # model = tunnel_oven(complexity='111')
