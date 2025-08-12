@@ -6,7 +6,7 @@
     - Tom Westermann, tom.westermann@hsu-hh.de, tom@ai4cps.com
 """
 
-from ml4cps.cps import CPSComponent, CPS
+from ml4cps.cps import CPS
 from plotly import graph_objects as go
 import pandas as pd
 import datetime
@@ -20,21 +20,19 @@ import networkx as nx
 import dash_cytoscape as cyto
 from dash import html, Dash, dcc, Output, Input
 import dash_bootstrap_components as dbc
-# from matplotlib import pyplot as plt
 from plotly.subplots import make_subplots
 import time, webbrowser, threading
 
 
-def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete=False, height=None, plotStates=False,
+def plot_timeseries(data, timestamp=None, mode_data=None, discrete=False, title=None, use_columns=None, height=None,
                     limit_num_points=None, names=None, xaxis_title=None, customdata=None, iterate_colors=True,
                     y_title_font_size=14, opacity=1, vertical_spacing=0.005, sharey=False, bounds=None,
                     plot_only_changes=False, yAxisLabelOffset=False, marker_size=4, showlegend=False,
-                    mode='lines+markers', modedata=None, **kwargs):
+                    mode='lines+markers', mode_height=0.2, x_title=None, **kwargs):
     """
     Using plotly library, plots each variable (column) in a collection of dataframe as subplots, one after another.
 
     Arguments:
-    plotStates (bool): if True, changes interpolation to 'hv', therefore keeping the last value
     yAxisLabelOffset (bool): if True, adds an offset to the plots y-axis labels. Improves readability on long subplot names.
 
     Returns:
@@ -71,23 +69,24 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
         columns = use_columns
 
     num_rows = len(columns)
-    if modedata is not None:
+    categories = []
+    if mode_data is not None:
         num_rows += 1
-
-    fig = make_subplots(rows=num_rows, cols=1, shared_xaxes=True, vertical_spacing=vertical_spacing,
+        fig = make_subplots(rows=num_rows, cols=1,
+                            row_heights=[mode_height] + [(1 - mode_height)/(num_rows - 1)]*(num_rows - 1),
+                            shared_xaxes=True, vertical_spacing=vertical_spacing,
                         shared_yaxes=sharey)
-
-    # select line_shape:
-    if plotStates is True:
-        lineShape = 'hv'
     else:
-        lineShape = 'linear'
+        fig = make_subplots(rows=num_rows, cols=1, shared_xaxes=True, vertical_spacing=vertical_spacing,
+                            shared_yaxes=sharey)
 
-    if modedata is not None:
-        if not isinstance(modedata, list):
-            modedata = [modedata]
+
+
+    if mode_data is not None:
+        if not isinstance(mode_data, list):
+            mode_data = [mode_data]
         k = -1
-        for md in modedata:
+        for md in mode_data:
             k += 1
             if iterate_colors:
                 color = DEFAULT_PLOTLY_COLORS[k % len(DEFAULT_PLOTLY_COLORS)]
@@ -101,14 +100,14 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
 
             if isinstance(md, np.ndarray):
                 md = pd.DataFrame({timestamp: md, 'Mode': np.arange(md.shape[0])})
-            fig.add_trace(go.Scattergl(x=md['Time'], y=md['Mode'], mode='markers+lines',
+            elif isinstance(md, pd.Series):
+                md = pd.DataFrame(md)
+            categories.append(md['Mode'].drop_duplicates())
+            time_temp = md['Time'] if 'Time' in md else md.index
+            fig.add_trace(go.Scatter(x=time_temp, y=md['Mode'], mode='markers+lines',
                                        name=trace_name, legendgroup=trace_name, line_shape='hv',
-                                       marker=dict(line_color=color,
-                                                   color=color,
-                                                   line_width=2,
-                                                   size=marker_size),
-                                       customdata=customdata, showlegend=showlegend, **kwargs),
-                          row=1, col=1)
+                                       marker=dict(line_color=color, color=color, line_width=2, size=marker_size),
+                                       customdata=customdata, showlegend=showlegend, **kwargs), row=1, col=1)
         i = 1
     else:
         i = 0
@@ -117,13 +116,11 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
         k = -1
         for trace_ind, d in enumerate(data):
             col_name = columns[col_ind]
-            col = d.columns[col_ind]
+
             if names:
                 trace_name = names[trace_ind]
             else:
                 trace_name = str(trace_ind)
-            if use_columns is not None and col_name not in use_columns:
-                continue
 
             hovertemplate = f"<b>Time:</b> %{{x}}<br><b>Event:</b> %{{y}}"
             if customdata is not None:
@@ -142,10 +139,10 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
                 t = d.index.get_level_values(d.index.names[-1]).to_numpy()
             else:
                 t = d.index.values
-            if d[col].dtype == tuple:
-                sig = d[col].astype(str).to_numpy()
+            if d[col_name].dtype == tuple:
+                sig = d[col_name].astype(str).to_numpy()
             else:
-                sig = d[col].to_numpy()
+                sig = d[col_name].to_numpy()
             if discrete:
                 ind = min(limit_num_points, d.shape[0])
                 if plot_only_changes:
@@ -162,17 +159,17 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
                     if customdata is not None:
                         customdata = customdata[0:ind]
 
-                fig.add_trace(go.Scattergl(x=t, y=sig, mode='markers', name=trace_name, legendgroup=trace_name,
-                                           marker=dict(line_color=color, color=color,
-                                                       line_width=2, size=marker_size), customdata=customdata,
-                                           hovertemplate=hovertemplate,
-                                           showlegend=(showlegend and col_ind==0 and modedata is None), **kwargs), row=i, col=1)
+                fig.add_trace(go.Scatter(x=t, y=sig, mode='markers', name=trace_name, legendgroup=trace_name,
+                                           marker=dict(line_color=color, color=color, line_width=2, size=marker_size),
+                                           customdata=customdata, hovertemplate=hovertemplate,
+                                           showlegend=(showlegend and col_ind == 0 and mode_data is None), **kwargs),
+                              row=i, col=1)
             else:
                 ind = min(limit_num_points, d.shape[0])
-                fig.add_trace(go.Scattergl(x=t[0:ind], y=sig[0:ind], mode=mode, name=trace_name, legendgroup=trace_name,
+                fig.add_trace(go.Scatter(x=t[0:ind], y=sig[0:ind], mode=mode, name=trace_name, legendgroup=trace_name,
                                            customdata=customdata,
-                                           line=dict(color=color, shape=lineShape),
-                                           showlegend=(showlegend and col_ind==0 and modedata is None), **kwargs), row=i, col=1)
+                                           line=dict(color=color, shape='linear'),
+                                           showlegend=(showlegend and col_ind == 0 and mode_data is None), **kwargs), row=i, col=1)
             fig.update_yaxes(title_text=str(col_name), row=i, col=1, title_font=dict(size=y_title_font_size),
                              categoryorder='category ascending')
         if i % 2 == 0:
@@ -184,7 +181,7 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
         if bounds is not None:
             upper_col = bounds[0].iloc[:, col_ind]
             lower_vol = bounds[1].iloc[:, col_ind]
-            upper_bound = go.Scattergl(
+            upper_bound = go.Scatter(
                 name='Upper Bound',
                 x=bounds[0].index.get_level_values(-1),
                 y=upper_col,
@@ -192,7 +189,7 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
                 marker=dict(color="#444"),
                 line=dict(width=0),
                 showlegend=False)
-            lower_bound = go.Scattergl(
+            lower_bound = go.Scatter(
                 name='Lower Bound',
                 x=bounds[1].index.get_level_values(-1),
                 y=lower_vol,
@@ -207,6 +204,21 @@ def plot_timeseries(data, title=None, timestamp=None, use_columns=None, discrete
 
     if title is not None:
         fig.update_layout(title={'text': title, 'x': 0.5}, autosize=True, height=height + 180, showlegend=showlegend)
+
+    if mode_data is not None:
+        categories = pd.concat(categories).drop_duplicates().to_list()
+        fig.update_yaxes(
+            categoryorder='array',
+            categoryarray=categories,
+            row=1, col=1
+        )
+
+    if x_title:
+        for i in reversed(range(1, 100)):
+            key = f"xaxis{i if i > 1 else ''}"
+            if key in fig.layout:
+                fig.layout[key].title = "Time [s]"
+                break
     return fig
 
 
@@ -335,11 +347,12 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=
         return traces
 
 
-def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False, edge_labels=True,
-                       show_transition_freq=False, edge_font_size=6, edge_text_max_width=None, init_label=False,
+def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False, event_label=True,
+                       show_transition_freq=False, show_transition_timing=False, font_size=6, edge_font_size=6,
+                       edge_text_max_width=None, init_label=False, limit_interval_precision=None,
                        show_transition_data=False, node_size=20, output="cyto", dash_port=8050, min_zoom=0.5,
                        max_zoom=1, min_edge_thickness=0.1, max_edge_thickness=4, freq_as_edge_thickness=False,
-                       color="black", title_text=None):
+                       color="black", title_text=None, layout_name='cose'):
     """
 
     :param cps:
@@ -360,9 +373,9 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
     edges = []
     for n in cps.discrete_states:
         if n in cps.final_q:
-            nodes.append(dict(data={'id': n, 'label': n}, classes='final'))
+            nodes.append(dict(data={'id': n, 'label': n.replace(' ','')}, classes='final'))
         else:
-            nodes.append(dict(data={'id': n, 'label': n}))
+            nodes.append(dict(data={'id': n, 'label': n.replace(' ','')}))
         if n in cps.q0:
             nodes.append(dict(data={'id': f"q0{n}", 'label': f"q0{n}"}, classes='q0'))
             if init_label:
@@ -373,14 +386,17 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
     for e in cps.get_transitions():
         if 'timing' in e[3]:
             freq = len(e[3]['timing'])
-            timings = [pd.Timedelta(x) for x in e[3]['timing']]
+            import numbers
+
+
+            timings = [float(x) if isinstance(x, numbers.Number) else pd.Timedelta(x).total_seconds() for x in e[3]['timing']]
         else:
             freq = 0
             timings = []
 
         edge = dict(data={'source': e[0],
                           'target': e[1],
-                          'label': f'{e[3]["event"]}',
+                          'label': f'{e[3]["event"]}' if event_label else '',
                           'timing': timings,
                           'freq': freq})
 
@@ -388,7 +404,12 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
                              x['data']['target'] == edge['data']['target']), None)
         if existing_edge is None:
             if show_transition_freq:
-                edge['data']['label'] += f' [{freq}]'
+                edge['data']['label'] += f' #{freq}'
+            if show_transition_timing:
+                if limit_interval_precision is None:
+                    edge['data']['label'] += f' [{min(timings)},{max(timings)}]'
+                else:
+                    edge['data']['label'] += f' [{min(timings):.{limit_interval_precision}f},{max(timings):.{limit_interval_precision}f}]'
 
             if show_transition_data:
                 edge_data = e[3]
@@ -400,7 +421,9 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
             edges.append(edge)
         else:
             if show_transition_freq:
-                existing_edge['data']['label'] += f'| [{freq}]'
+                existing_edge['data']['label'] += f' #{freq}]'
+            if show_transition_timing:
+                existing_edge['data']['label'] += f' [{min(timings):.{limit_interval_precision}f},{max(timings):.{limit_interval_precision}f}]'
 
             if show_transition_data:
                 edge_data = e[3]
@@ -436,7 +459,7 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
                   'background-opacity': 0}
     if node_labels:
         node_style['label'] = 'data(label)'
-        node_style['font-size'] = 6
+        node_style['font-size'] = font_size
         node_style['font-style'] = "italic"
         node_style['text-wrap'] = 'wrap'
         node_style['text-max-width'] = 50
@@ -451,10 +474,13 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
                 'target-arrow-shape': 'triangle',
                 'target-arrow-color': color,
                 'target-arrow-size': 3,
+                'text-background-color': '#ffffff',
+                'text-background-opacity': 1,
+                'text-background-shape': 'roundrectangle',
+                'color': "#B8234F",
                 'width': 1,
-                'font-style': "italic",
-                "font-family": "serif",
-                'font-color': 'gray',
+                'font-style': 'italic',
+                'font-family': "serif",
                 'text-wrap': 'wrap',
                 'font-size': edge_font_size,
                 'text-max-width': edge_text_max_width,
@@ -464,8 +490,7 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
     if freq_as_edge_thickness:
         edge_style['width'] = 'data(thickness)'
 
-    if edge_labels:
-        edge_style['label'] = 'data(label)'
+    edge_style['label'] = 'data(label)'
 
     stylesheet = [
         {
@@ -494,10 +519,10 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
 
     network = cyto.Cytoscape(
         id=id,
-        layout={'name': 'cose', "fit": True},
+        layout={'name': layout_name, "fit": True},
         maxZoom=max_zoom,
         minZoom=min_zoom,
-        style={'width': '100%', 'height': '1200px'}, stylesheet=stylesheet,
+        style={'width': '100%', 'height': '100%'}, stylesheet=stylesheet,
         elements=elements)
 
     modal_state_data = dbc.Modal(children=[dbc.ModalHeader("Timings"),
@@ -506,7 +531,7 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
     modal_transition_data = dbc.Modal(children=[dbc.ModalHeader("Timings"),
                                                 dbc.ModalBody(html.Div(children=[]))],
                                  id=f"{id}-modal-transition-data")
-    network = html.Div([title_text, network, modal_state_data, modal_transition_data])
+    network = html.Div([title_text, network, modal_state_data, modal_transition_data], style={'width': '100%', 'height': '100%'})
 
     if output == "notebook":
         app = Dash(__name__)
@@ -514,8 +539,8 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
         app.run(mode='inline', port=dash_port)
     elif output == "dash":
         app = Dash(__name__)
-        app.layout = html.Div(children=[network], style={'width': '100%',
-                                                         'height': '100vh',
+        app.layout = html.Div(children=[network], style={'width': '200%',
+                                                         'height': '200vh',
                                                          'margin': '0',
                                                          'padding': '0'})
 
@@ -542,7 +567,7 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
 
 
 def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_size=40, node_font_size=20,
-             edge_font_size=16, edge_text_max_width=None, output="cyto", dash_port=8050, height='100vh',
+             edge_font_size=16, edge_text_max_width=None, output="cyto", dash_port=8050, height='100%',
              minZoom=0.5, maxZoom=2, **kwargs):
     """
     Plots all the components of a CPS in the same figure.
@@ -612,7 +637,6 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
 
     network = cyto.Cytoscape(
         id=dash_id if dash_id is not None else cps.id,
-        # layout={'name': 'cose', "fit": True},
         layout={
             'name': 'cose',
             'padding': 10,  # Padding around the graph layout
@@ -623,13 +647,8 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
             'nodeDimensionsIncludeLabels': True,  # Include label sizes in layout
             'nestingFactor': 0.7  # Factor to apply to compounds when calculating layout
         },
-        # layout={
-        #     'id': 'breadthfirst',
-        #     'roots': '[id = "initial"]'
-        # },
         maxZoom=maxZoom,
         minZoom=minZoom,
-        # style={'width': '100%'},
         stylesheet=stylesheet,
         elements=elements, style={'width': '100%', 'height': height},
         **kwargs)
@@ -649,7 +668,7 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
     if output == "dash":
         app = Dash(__name__)
         app.layout = html.Div(children=[network], style={'width': '100%',
-                                                         'height': '100vh',
+                                                         'height': '100%',
                                                          'margin': '0',
                                                          'padding': '0'})
 

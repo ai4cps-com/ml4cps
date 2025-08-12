@@ -274,7 +274,7 @@ class XBinaryRBM(ABC, nn.Module):
 
     def plot_learning_curve(self):
         return vis.plot_timeseries([pd.DataFrame(self.learning_curve), pd.DataFrame(self.valid_curve)],
-                             title='Learning curve', names=['Train', 'Valid'], xaxis_title='Epoch')
+                                   title='Learning curve', names=['Train', 'Valid'], xaxis_title='Epoch')
 
     def fit(self, data, epochs=10, batch_size=64, k=1, learning_rate=0.01):
         """

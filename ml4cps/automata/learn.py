@@ -8,13 +8,10 @@
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
-from ml4cps import vis
+from ml4cps import vis, tools
 from ml4cps.automata.base import Automaton
 from collections import OrderedDict
 import pprint
-
-import numpy as np
-
 
 def FnShiftAndDiff(xout, udout, norm_coeff, num_var, num_ud, max_deriv, Ts):
     # Normalize xout
@@ -101,7 +98,11 @@ def simple_learn_from_event_logs(data, initial=True, count_repetition=True, verb
         t_old = d.index[0]
         if initial:
             a.add_initial_state('initial')
-        for t, event in d.items():
+
+        if type(d) is pd.DataFrame:
+            d = tools.create_events_from_concurent_logs(d)
+
+        for t, event in d:
             if state_event == event:
                 event_rpt += 1
             else:
@@ -112,13 +113,13 @@ def simple_learn_from_event_logs(data, initial=True, count_repetition=True, verb
             if old_state_event == '':
                 source = 'initial'
             else:
-                if count_repetition:
-                    source = '{}#{}'.format(old_state_event, old_event_rpt) if old_event_rpt else old_state_event
+                if count_repetition and old_event_rpt:
+                    source = f'{old_state_event}#{old_event_rpt}'
                 else:
                     source = old_state_event
 
-            if count_repetition:
-                dest = '{}#{}'.format(state_event, event_rpt) if event_rpt else state_event
+            if count_repetition and event_rpt:
+                dest = f'{state_event}#{event_rpt}'
             else:
                 dest = state_event
 
@@ -132,34 +133,51 @@ def simple_learn_from_event_logs(data, initial=True, count_repetition=True, verb
     return a
 
 
-def simple_learn_from_signal_vectors(data, sig_names, drop_no_changes=False, verbose=False):
+def simple_learn_from_signal_vectors(data, drop_no_changes=False, verbose=False):
     a = Automaton()
     sequence = 0
     if verbose:
         print('***Timed automaton learning from variable changes***')
 
+    dummy_initial = 'initial'
+    a.add_initial_state(dummy_initial)
+
     for d in data:
+        sig_names = d.columns
         if drop_no_changes:
-            d = d.loc[(d.iloc[:, 1:].diff() != 0).any(axis=1), :]
-        time_col = d.columns[0]
+            d = tools.remove_timestamps_without_change(d)
         sequence += 1
         if verbose:
             print('Sequence #{}'.format(sequence))
             if len(d) < 2:
                 print('Skipping because num events: 0')
                 continue
-            print('Duration: {}'.format(d[time_col].iloc[-1] - d[time_col].iloc[0]))
+            print('Duration: {}'.format(d.index[-1] - d.index[0]))
 
         previous_state = d[sig_names].iloc[:-1]
         dest_state = d[sig_names].iloc[1:]
-        event = d[sig_names].diff().apply(lambda x: ' '.join(x.astype(str)).replace(".0", ""), 1).iloc[1:]
-        deltat = d[time_col].diff().iloc[1:]
+        mask = ~d[sig_names].isin([0, 1])
+        has_invalid = mask.any().any()
+        if has_invalid:
+            event = d[sig_names].apply(lambda x: ' '.join(x.astype(str)).replace(".0", ""), 1).iloc[1:]
+        else:
+            event = d[sig_names].diff().apply(lambda x: ' '.join(x.astype(str)).replace(".0", ""), 1).iloc[1:]
+        deltat = d.index.diff()[1:]
 
+        obs_ind = 0
         for source, dest, ev, dt in zip(previous_state.itertuples(index=False, name=None),
                                         dest_state.itertuples(index=False, name=None), event, deltat):
+            obs_ind += 1
             source = pprint.pformat(source, compact=True, width=10000).replace(".0", "")
             dest = pprint.pformat(dest, compact=True, width=10000).replace(".0", "")
+
+            if obs_ind == 1:
+                a.add_single_transition(dummy_initial, source, "Start", 0)
+
             a.add_single_transition(source, dest, ev, dt)
+
+            if obs_ind == len(previous_state):
+                a.add_final_state(dest)
     return a
 
 

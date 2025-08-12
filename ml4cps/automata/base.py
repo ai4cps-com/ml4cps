@@ -584,7 +584,7 @@ class Automaton (CPSComponent):
                 time = dest['time']
                 if callable(time):
                     time = time()
-                return time, dest['destination']
+                return time, dest.get('destination', dest['dest'])
         return None, None
 
     def get_transition(self, s, d=None, e=None, if_more_than_one='raise'):
@@ -774,15 +774,24 @@ class Automaton (CPSComponent):
     #         data.append(pd.concat(data_state, axis=0))
     #     return states, data
 
-    def predict_state(self, data_collection, time_col_name, discr_col_names):
+    def predict_state(self, data_collection, time_col_name=None, discr_col_names=None):
         for data in data_collection:
             data["StateEstimate"] = None
             data["Event"] = None
 
             prev_discr_state = None
             prev_time = None
+
+            if discr_col_names is None:
+                discr_col_names = data.columns
+            if time_col_name is not None:
+                discr_col_names -= time_col_name
+
             for row in data[discr_col_names].itertuples(index=True):
-                time = data[time_col_name].iloc[row[0]]
+                if time_col_name is not None:
+                    time = data[time_col_name].iloc[row[0]]
+                else:
+                    time = row[0]
                 discr_state = row[1:]
                 if prev_discr_state is not None and prev_discr_state != discr_state:
                     event = np.asarray(discr_state) - np.asarray(prev_discr_state)

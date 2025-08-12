@@ -5,7 +5,6 @@ import warnings
 
 import pandas as pd
 import numpy as np
-from sklearn.exceptions import UndefinedMetricWarning
 from sklearn.metrics import precision_score
 try:
     import torch
@@ -44,6 +43,8 @@ def window(x, window_size, window_step):
     if type(x) is list:
         return [window(xx, window_size, window_step) for xx in x]
     else:
+        if type(x) is pd.DataFrame:
+            x = torch.tensor(x.values, dtype=torch.float32)
         x_unfolded = x.unfold(dimension=0, size=window_size, step=window_step)
         dims = list(range(x_unfolded.dim()))  # current dims [0, 1, 2, ..., unfolded_dim]
         # Move last dimension (-1) to position 1
@@ -84,21 +85,28 @@ def extend_derivative(signals, use_derivatives=(0, 1)): # Can be torch also
         new_signals = torch.hstack(new_signals)
     return new_signals
 
+def encode_columns_to_string(df, name='Mode'):
+    if type(df) is list:
+        return [encode_columns_to_string(d, name=name) for d in df]
+    else:
+        result = df.apply(lambda x: ','.join(x.astype(str)).replace(".0", ""), 1)
+        result.name = name
+        return result
 
 def remove_timestamps_without_change(data, sig_names=None):
     """Removes timestamps where no values changed in comparison to the previous timestamp."""
-
-    new_data = []
-    for d in data:
-        d = pd.DataFrame(d)
+    if type(data) is list:
+        return [remove_timestamps_without_change(d, sig_names=sig_names) for d in data]
+    else:
+        if type(data) is not pd.DataFrame:
+            data = pd.DataFrame(data)
         if sig_names is None:
-            sig = d.columns
+            sig = data.columns
         else:
             sig = sig_names
-        ind = (d[sig].diff() != 0).any(axis=1)
-        dd = d.loc[ind]
-        new_data.append(dd.copy(deep=True))
-    return new_data
+        ind = (data[sig] != data[sig].shift(1)).any(axis=1)
+        dd = data.loc[ind]
+        return dd.copy(deep=True)
 
 
 def filter_signals(data, sig_names):
@@ -109,14 +117,31 @@ def filter_signals(data, sig_names):
     return data
 
 
-def create_events_from_signal_vectors(data, sig_names):
+def create_events_from_signal_vectors(data, sig_names=None):
     for d in data:
-        d.loc[:, "event"] = d[sig_names].diff().apply(lambda x: ' '.join(x.astype(str)).replace(".0", ""), 1)
+        if sig_names is None:
+            sig_names = d.columns
+        sig_values = d[sig_names]
+        d.loc[:, "event"] = sig_values.diff().apply(lambda x: ' '.join(x.astype(str)).replace(".0", ""), 1)
         d.loc[0, "event"] = np.nan
         # d.drop(columns=signals)
         # d["dt"] = d[time].diff().shift(-1)
         # new_data.append(d)
     return data
+
+def create_events_from_concurent_logs(data):
+    new_data = []
+    columns = data.columns
+    prev_d = None
+    for t, d in zip(data.index, data.to_dict(orient='records')):
+        if prev_d is None:
+            pass
+        else:
+            for k in columns:
+                if prev_d[k] != d[k]:
+                    new_data.append((t, f'{k}.{d[k]}'))
+        prev_d = d
+    return new_data
 
 
 def group_data_on_discrete_state(data, state_column, reset_time=False, time_col=None):
