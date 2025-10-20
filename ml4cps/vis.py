@@ -47,7 +47,7 @@ def plot_timeseries(data, timestamp=None, mode_data=None, discrete=False, title=
         data = [data]
 
     if len(data) == 0:
-        return None
+        return go.Figure()
 
     # if not panda data frame
     for i in range(len(data)):
@@ -687,7 +687,7 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
     network = cyto.Cytoscape(
         id=dash_id if dash_id is not None else cps.id,
         layout={
-            'name': 'cose',
+            'name': 'grid',
             'padding': 10,  # Padding around the graph layout
             'nodeOverlap': 20,  # Adjust to reduce overlap
             'nodeRepulsion': 100,  # Increase repulsion for better separation
@@ -723,17 +723,12 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
 
         # Function to start the Dash server
         def run_dash():
-            app.run_server(port=dash_port, debug=False, use_reloader=False)  # Start the Dash server
+            app.run(port=dash_port, debug=False, use_reloader=False)  # Start the Dash server
 
         # Function to open the browser
         def open_browser():
             time.sleep(1)  # Give the server a second to start
             webbrowser.open(f"http://127.0.0.1:{dash_port}/")  # Open the Dash app in the browser
-
-        # Start the Dash server in a separate thread
-        server_thread = threading.Thread(target=run_dash)
-        server_thread.daemon = True  # Allows the program to exit even if this thread is running
-        server_thread.start()
 
         # Start the Dash server in a separate thread
         server_thread = threading.Thread(target=run_dash)

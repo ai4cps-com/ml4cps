@@ -264,6 +264,9 @@ class CPS:
         print('Simulation finished.')
         return stateflow_data, discr_output_data, cont_state_data, cont_output_data, env.now
 
+    def finish_condition(self):
+        pass
+
 
 class CPSComponent(PythonModel, sim.Simulator):
     """
@@ -414,7 +417,10 @@ class CPSComponent(PythonModel, sim.Simulator):
 
         while True:
             discr_state = dict(zip(self.discrete_state_names, self._q))
-            self._d = self.output_d(self.discrete_state, self._xt, self._xk)
+            if self.output_d is None:
+                self._d = self.discrete_state
+            else:
+                self._d = self.output_d(self.discrete_state, self._xt, self._xk)
             self._discrete_state_data.append(dict(Time=env.now, **discr_state, **self._p))
             self._discrete_output_data.append([env.now, *self._d])
 
@@ -424,7 +430,7 @@ class CPSComponent(PythonModel, sim.Simulator):
                     print(f'Stop because of maximum time {max_time} is reached.')
                 break
             # Stop if the stopping condition of the overall system is met
-            elif self.overall_system.stop_condition(env.now):
+            elif self.overall_system.finish_condition():
                 if verbose:
                     print('Stop because stop condition of the overall system is met.')
                 break
@@ -482,7 +488,7 @@ class CPSComponent(PythonModel, sim.Simulator):
                     print(f'Stop because of maximum time {max_time} is reached.')
                 break
             # Stop if the stopping condition of the overall system is met
-            elif self.overall_system.stop_condition(env.now):
+            elif self.overall_system.finish_condition():
                 if verbose:
                     print('Stop because stop condition of the overall system is met.')
                 break
@@ -660,7 +666,7 @@ class CPSComponent(PythonModel, sim.Simulator):
     def on_entry(self, q, context):
         pass
 
-    def __step_continuous(self):
+    def __step_continuous(self, clock_start, clock_finish):
         """
     Simulates one time step of continuous behavior from t to t+dt. Underlying function is solve_ivp with method is 'RK23'.
         :param x0: Initial state vector.
@@ -673,7 +679,7 @@ class CPSComponent(PythonModel, sim.Simulator):
                       t_span=(clock_start, clock_finish + self.dt), y0=self._xt, method='RK23',
                       args=(self._xk, self._q, self._u, self._p, self._y))
 
-        self._xk = self.time_discrete_dynamics()
+        self._xk = self.time_discrete_dynamics(self._q, self._p, self._xt, self._u)
         self._xt = s.y[-1]
 
         # self._continuous_state_data += np.concatenate([s.t.T[None], s.y]).T.tolist()
