@@ -25,7 +25,7 @@ class Automaton (CPSComponent):
     """
 
     def __init__(self, states: list = None, transitions: list = None,
-                 unknown_state: str = 'raise', id="", initial_q=(), final_q=(), super_states=(), decision_states=(),
+                 unknown_state: str = 'raise', id="", initial_q=(), initial_r=None, final_q=(), super_states=(), decision_states=(),
                  **kwargs):
         """
         Class initialization from lists of elements.
@@ -40,6 +40,7 @@ class Automaton (CPSComponent):
         if initial_q and isinstance(initial_q, str):
             initial_q = [initial_q]
         self.q0 = OrderedDict.fromkeys(initial_q)
+        self.initial_r = initial_r
         if final_q and isinstance(final_q, str):
             final_q = [final_q]
         self.final_q = OrderedDict.fromkeys(final_q)
@@ -850,7 +851,7 @@ class Automaton (CPSComponent):
         if len(self._discrete_state_data):
             self._discrete_state_data[-1]["Finish"] = t
         self._discrete_state_data.append(dict(Time=t, Event=e, Mode=self.discrete_state, **self._p))
-        self._discrete_output_data.append([t, *self._d, self._p['event']])
+        self._discrete_output_data.append([t, *self._d, self._p.get('event', None)])
 
 
 

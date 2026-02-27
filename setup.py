@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="ml4cps",
-    version="0.1.18",
+    version="0.1.192",
     packages=find_packages(),
     install_requires=[
         'dash', 'pandas', 'networkx', 'plotly', 'numpy', 'dash_daq', 'dash-bootstrap-components', 'pydotplus',

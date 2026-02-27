@@ -99,7 +99,7 @@ def plot_timeseries(data, timestamp=None, mode_data=None, discrete=False, title=
                 trace_name = str(k)
 
             if isinstance(md, np.ndarray):
-                md = pd.DataFrame({timestamp: md, 'Mode': np.arange(md.shape[0])})
+                md = pd.DataFrame({timestamp:  np.arange(md.shape[0]), 'Mode': md})
             elif isinstance(md, pd.Series):
                 md = pd.DataFrame(md)
             categories.append(md['Mode'].drop_duplicates())
@@ -222,7 +222,7 @@ def plot_timeseries(data, timestamp=None, mode_data=None, discrete=False, title=
     return fig
 
 
-def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=12,
+def plot_stateflow(stateflow, color_mapping=None, state_col='State', task_col='Task', bar_height=12,
                    start_column='Start', finish_column='Finish', return_figure=False, description_col='Description',
                    idle_states=None):
     """
@@ -262,7 +262,7 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=
                         # ((start_plot <= s.Time) &
                         #  (s.Time <= finish_plot)) |
                         # ((start_plot <= s.Finish) & (s.Finish <= finish_plot)))
-                sf['Task'] = station
+                sf[task_col] = station
                 # if sf.size > 0 and pd.isnull(sf['Finish'].iloc[-1]):
                 #     sf['Finish'].iloc[-1] = pd.to_datetime(finish_plot)
                 # s['Finish'] = pd.to_datetime(s['Finish'])
@@ -302,7 +302,7 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=
         custom_data = []
         text = []
         for k, row in g.iterrows():  # , g[item_col], g.Source, g.Destination):
-            x1, x2, tsk = row[start_column], row[finish_column], row['Task']
+            x1, x2, tsk = row[start_column], row[finish_column], row[task_col]
             x.append(x1)
             x.append(x2)
             x.append(None)
@@ -325,7 +325,7 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=
                     if dc in row:
                         ht += '<br>{}: {}'.format(dc, row[dc])
             for k, val in row.items():
-                if not pd.isnull(val) and k not in [state_col, finish_column, start_column, 'Task', 'Duration']:
+                if not pd.isnull(val) and k not in [state_col, finish_column, start_column, task_col, 'Duration']:
                     ht += f'<br>{k}: {val}'
             hovertext.append(ht)
 
@@ -350,9 +350,11 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', bar_height=
 def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False, event_label=True,
                        show_transition_freq=False, show_transition_timing=False, font_size=6, edge_font_size=6,
                        edge_text_max_width=None, init_label=False, limit_interval_precision=None,
-                       show_transition_data=False, node_size=20, output="cyto", dash_port=8050, min_zoom=0.5,
+                       show_transition_data=False, transition_data_keys=True, node_size=20, output="cyto",
+                       dash_port=8050, min_zoom=0.5, split_edges_diff_event=False,
                        max_zoom=1, min_edge_thickness=0.1, max_edge_thickness=4, freq_as_edge_thickness=False,
-                       color="black", title_text=None, layout_name='cose'):
+                       color="black", title_text=None, layout_name='breadthfirst', layout_spacingFactor=1,
+                       hide_nodes=None):
     """    
     Visualizes a component of a Cyber-Physical System (CPS) as a graph using Dash Cytoscape.
     This function generates a graphical representation of the discrete states and transitions of a CPS,
@@ -409,7 +411,29 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
         - Requires Dash, dash_cytoscape, dash_bootstrap_components, and pandas.
         - The function supports interactive modals for displaying timing data on states and transitions.
         - Threading is used to launch the Dash app in browser mode without blocking the main program.
-
+    # 1. 'grid'            → Places nodes in a simple rectangular grid.
+# 2. 'random'          → Randomly positions nodes; useful for testing.
+# 3. 'circle'          → Arranges nodes evenly around a circle.
+# 4. 'concentric'      → Places nodes in concentric circles, often by degree or weight.
+# 5. 'breadthfirst'    → Hierarchical layout (tree-like), good for state machines or DAGs.
+#                        Optional params: directed=True, padding=<int>
+# 6. 'cose'            → Force-directed layout (spring simulation). Great for organic graphs.
+#                        Optional params: idealEdgeLength, nodeRepulsion, gravity, numIter
+# 7. 'cose-bilkent'    → Improved force-directed layout with better stability and aesthetics.
+#                        (Requires: cyto.load_extra_layouts())
+# 8. 'cola'            → Constraint-based force-directed layout; handles larger graphs well.
+#                        (Requires: cyto.load_extra_layouts())
+# 9. 'euler'           → Physically simulated layout; looks natural and dynamic.
+#                        (Requires: cyto.load_extra_layouts())
+# 10. 'avsdf'          → Circular layout optimized to reduce edge crossings.
+#                        (Requires: cyto.load_extra_layouts())
+# 11. 'spread'         → Distributes disconnected components evenly across space.
+#                        (Requires: cyto.load_extra_layouts())
+# 12. 'klay'           → Layered (hierarchical) layout, excellent for flowcharts or process models.
+#                        (Requires: cyto.load_extra_layouts())
+# 13. 'dagre'          → Directed acyclic graph layout, ideal for workflows and automata.
+#                        (Requires: cyto.load_extra_layouts())
+#                        Optional params: rankDir='TB' (top-bottom), 'LR' (left-right), etc.
     """
 
     
@@ -422,17 +446,29 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
     edges = []
     for n in cps.discrete_states:
         if n in cps.final_q:
-            nodes.append(dict(data={'id': n, 'label': n.replace(' ','')}, classes='final'))
+            classes = ['final']
+            if hide_nodes and n in hide_nodes:
+                classes.append('hidden')
+            nodes.append(dict(data={'id': n, 'label': n.replace(' ','')}, classes=classes))
         else:
-            nodes.append(dict(data={'id': n, 'label': n.replace(' ','')}))
+            classes = []
+            if hide_nodes and n in hide_nodes:
+                classes.append('hidden')
+            nodes.append(dict(data={'id': n, 'label': n.replace(' ','')}, classes=classes))
+
         if n in cps.q0:
             nodes.append(dict(data={'id': f"q0{n}", 'label': f"q0{n}"}, classes='q0'))
             if init_label:
                 edges.append(dict(data=dict(label='init', source=f"q0{n}", target=n)))
+            elif event_label:
+                edges.append(dict(data=dict(label=cps.initial_r, source=f"q0{n}", target=n)))
             else:
                 edges.append(dict(data=dict(source=f"q0{n}", target=n)))
 
     for e in cps.get_transitions():
+        if hide_nodes and (e[0] in hide_nodes or e[1] in hide_nodes):
+            continue
+
         if 'timing' in e[3]:
             freq = len(e[3]['timing'])
             import numbers
@@ -451,7 +487,7 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
 
         existing_edge = next((x for x in edges if x['data']['source'] == edge['data']['source'] and
                              x['data']['target'] == edge['data']['target']), None)
-        if existing_edge is None:
+        if existing_edge is None or split_edges_diff_event:
             if show_transition_freq:
                 edge['data']['label'] += f' #{freq}'
             if show_transition_timing:
@@ -465,21 +501,24 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
                 ev = edge_data.pop('event', None)
                 if isinstance(show_transition_data, list):
                     edge_data = {k: v for k, v in edge_data.items() if k in show_transition_data}
-                edge['data']['label'] += " "
-                edge['data']['label'] += " ".join(f"{key} = {value}" for key, value in edge_data.items())
+                # edge['data']['label'] += "\n"
+                if transition_data_keys:
+                    edge['data']['label'] += " ".join(f"{key}: {value}" for key, value in edge_data.items())
+                else:
+                    edge['data']['label'] += " ".join(f"{value}" for key, value in edge_data.items())
             edges.append(edge)
-        else:
+        else: # existing_edge
             if show_transition_freq:
                 existing_edge['data']['label'] += f' #{freq}]'
             if show_transition_timing:
                 existing_edge['data']['label'] += f' [{min(timings):.{limit_interval_precision}f},{max(timings):.{limit_interval_precision}f}]'
 
-            if show_transition_data:
+            if show_transition_data or event_label:
                 edge_data = e[3]
                 ev = edge_data.pop('event', None)
                 if isinstance(show_transition_data, list):
                     edge_data = {k: v for k, v in edge_data.items() if k in show_transition_data}
-                existing_edge['data']['label'] += f" | {ev} " + ", ".join(f"{key} = {value}" for key, value in edge_data.items())
+                existing_edge['data']['label'] += f" ,{ev} " + "; ".join(f"{key} = {value}" for key, value in edge_data.items())
 
     # Normalize thickness to the range [1, 10]
     thickness_values = [edge["data"].get("freq", 1) for edge in edges]
@@ -564,11 +603,16 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
         {
             'selector': 'edge',
             'style': edge_style
-        }]
+        },
+        {
+            "selector": ".hidden",
+            "style": {"visibility": "hidden"}
+        }
+    ]
 
     network = cyto.Cytoscape(
         id=id,
-        layout={'name': layout_name, "fit": True},
+        layout={'name': layout_name, "fit": True, "spacingFactor": layout_spacingFactor},
         maxZoom=max_zoom,
         minZoom=min_zoom,
         style={'width': '100%', 'height': '100%'}, stylesheet=stylesheet,
@@ -584,12 +628,16 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
 
     if output == "notebook":
         app = Dash(__name__)
-        app.layout = html.Div(children=[network])
+        app.layout = html.Div(children=[network], style={'width': '100%',
+                                                         'height': '100vh',
+                                                         'margin': '0',
+                                                         'padding': '0'})
         app.run(mode='inline', port=dash_port)
+        return None
     elif output == "dash":
         app = Dash(__name__)
-        app.layout = html.Div(children=[network], style={'width': '200%',
-                                                         'height': '200vh',
+        app.layout = html.Div(children=[network], style={'width': '100%',
+                                                         'height': '100vh',
                                                          'margin': '0',
                                                          'padding': '0'})
 
@@ -636,21 +684,20 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
     elements = dict(nodes=[], edges=[])
 
     for comid, com in cps.items():
-        try:
-            els = plot_cps_component(com, output="elements")
-        except:
-            els = dict(edges=[], nodes=[])
+        els = dict(edges=[], nodes=com)
         elements['nodes'].append({'data': {'id': comid, 'label': comid}, 'classes': 'parent'})
         for x in els['nodes']:
+            if type(x) is str or type(x) is list:
+                x = {'data': {'id': x}}
             x['data']['group'] = comid
             x['data']['parent'] = comid
             x['data']['label'] = f"{x['data']['id']}"
             x['data']['id'] = f"{comid}-{x['data']['id']}"
+            elements['nodes'].append(x)
         for x in els['edges']:
             x['data']['source'] = f"{comid}-{x['data']['source']}"
             x['data']['target'] = f"{comid}-{x['data']['target']}"
-        elements['nodes'] += els['nodes']
-        elements['edges'] += els['edges']
+            elements['edges'].append(x)
 
     node_style = {'width': node_size,
                   'height': node_size}
@@ -690,12 +737,18 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
             'name': 'grid',
             'padding': 10,  # Padding around the graph layout
             'nodeOverlap': 20,  # Adjust to reduce overlap
-            'nodeRepulsion': 100,  # Increase repulsion for better separation
-            'idealEdgeLength': 50,  # Increase edge length to spread nodes
-            'componentSpacing': 100,  # Spacing between disconnected components
+            'nodeRepulsion': 50,  # Increase repulsion for better separation
+            'idealEdgeLength': 10,  # Increase edge length to spread nodes
+            'componentSpacing': 50,  # Spacing between disconnected components
             'nodeDimensionsIncludeLabels': True,  # Include label sizes in layout
-            'nestingFactor': 0.7  # Factor to apply to compounds when calculating layout
+            'nestingFactor': 0.7,  # Factor to apply to compounds when calculating layout
+            "spacingFactor": 1.5
         },
+        # layout={
+        #     "name": "breadthfirst",
+        #     "directed": True,
+        #     "spacingFactor": 1.5
+        # },
         maxZoom=maxZoom,
         minZoom=minZoom,
         stylesheet=stylesheet,
@@ -712,7 +765,7 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
     if output == "notebook":
         app = Dash(__name__)
         app.layout = html.Div(children=[network])
-        app.run_server(mode='inline')
+        app.run(mode='inline')
         return
     if output == "dash":
         app = Dash(__name__)
