@@ -7,6 +7,7 @@
 """
 import copy
 import json
+import logging
 from abc import abstractmethod
 from traceback import print_exc
 import numpy as np
@@ -630,7 +631,20 @@ class CPSComponent(PythonModel, sim.Simulator):
         self._t = t
 
     def get_execution_data(self):
-        data = pd.DataFrame(self._discrete_state_data) #, columns=['Time', 'Finish', 'State', 'Event'] + list(self._p.keys()))
+        try:
+            data = pd.DataFrame(self._discrete_state_data) #, columns=['Time', 'Finish', 'State', 'Event'] + list(self._p.keys()))
+        except ValueError as ve:
+            warnings.warn(str(self._discrete_state_data))
+            warnings.warn('Discrete state data not available due to value error.')
+            for i, row in enumerate(self._discrete_state_data):
+                for k, v in row.items():
+                    if not is_scalar(v):
+                        print(f"Non-scalar at row {i}, key '{k}'")
+                        print("Type:", type(v))
+                        print("Length:", len(v) if hasattr(v, "__len__") else "N/A")
+                        break
+            raise ve
+
         data['Finish'] = data['Time'].shift(-1)
         data['Duration'] = pd.to_timedelta(data['Finish'] - data['Time']).dt.total_seconds()
         return data
@@ -735,6 +749,9 @@ class CPSComponent(PythonModel, sim.Simulator):
 
     def get_decision_state(self, state, overall_state):
         return state
+
+def is_scalar(x):
+    return pd.api.types.is_scalar(x)
 
 
 if __name__ == '__main__':
