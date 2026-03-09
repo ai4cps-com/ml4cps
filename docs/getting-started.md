@@ -2,34 +2,15 @@
 
 ## Basic usage
 ```python
-from selfx.dash.dashboard import SelfXDash
-from selfx.backend.features import Feature
+import ml4cps as at
 
-class Feature1(Feature):
-    def perform(self, start, end):
-        return 1
+A = at.Automaton()
+A.add_states_from(["s1", "s2", "s3"])
+A.add_transitions_from([("s1", "s2", "e1"),
+                        ("s2", "s3", "e1"),
+                        ("s3", "s1", "e2")])
 
-    def layout(self, role, analysis, start, end):
-        return "Feature 1 succeded"
-
-    def icon(self):
-        return 'home'
-
-class Feature2(Feature):
-    required_features = ["Feature1"]
-
-    def perform(self, start, end):
-        return 2
-
-    def layout(self, role, analysis, start, end):
-        return "Feature 2 succeded"
-
-    def icon(self):
-        return 'bar_chart'
-
-app = SelfXDash()
-app.add_system('System 1', features=[Feature1, Feature2])
-
-app.run(port=8050, host="127.0.0.1")
+print(A)
+A.view_plotly().show()
 ```
 

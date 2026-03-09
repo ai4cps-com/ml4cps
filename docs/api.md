@@ -2,12 +2,12 @@
 
 ## Backend
 
-::: selfx.backend
+::: ml4cps.automata
     options:
       show_root_heading: true
       show_source: true
 
 ## Backend Utils
 
-::: selfx.backend.utils
+::: ml4cps.automata.learn
 

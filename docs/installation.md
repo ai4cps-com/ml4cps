@@ -1,5 +1,5 @@
 # Installation
 
 ```bash
-pip install selfx
+pip install ml4cps
 ```
