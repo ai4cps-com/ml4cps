@@ -8,3 +8,4 @@ ml4cps/mlruns/
 /dist/
 mlruns/
 ml4cps.egg-info/
+build/

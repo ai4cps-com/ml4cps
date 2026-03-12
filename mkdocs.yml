@@ -9,6 +9,10 @@ plugins:
       handlers:
         python:
           paths: [.]
+          options:
+            show_root_heading: true
+            show_root_toc_entry: false
+            show_source: false
 
 theme:
   name: material
@@ -23,5 +27,7 @@ markdown_extensions:
   - admonition
   - fenced_code
   - tables
+  - pymdownx.snippets
+  - pymdownx.superfences
   - toc:
       permalink: true

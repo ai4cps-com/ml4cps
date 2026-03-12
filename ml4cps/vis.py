@@ -24,202 +24,571 @@ from plotly.subplots import make_subplots
 import time, webbrowser, threading
 
 
-def plot_timeseries(data, timestamp=None, mode_data=None, discrete=False, title=None, use_columns=None, height=None,
-                    limit_num_points=None, names=None, xaxis_title=None, customdata=None, iterate_colors=True,
-                    y_title_font_size=14, opacity=1, vertical_spacing=0.005, sharey=False, bounds=None,
-                    plot_only_changes=False, yAxisLabelOffset=False, marker_size=4, showlegend=False,
-                    mode='lines+markers', mode_height=0.2, x_title=None, **kwargs):
+def plot_timeseries(
+    data,
+    timestamp=None,
+    mode_data=None,
+    discrete=False,
+    title=None,
+    use_columns=None,
+    height=None,
+    limit_num_points=None,
+    names=None,
+    xaxis_title=None,
+    customdata=None,
+    iterate_colors=True,
+    y_title_font_size=14,
+    opacity=1.0,
+    vertical_spacing=0.005,
+    sharey=False,
+    bounds=None,
+    plot_only_changes=False,
+    yAxisLabelOffset=False,
+    marker_size=4,
+    showlegend=False,
+    mode_height=0.2,
+    x_title=None,
+    **kwargs,
+):
     """
-    Using plotly library, plots each variable (column) in a collection of dataframe as subplots, one after another.
+    Plot one or more time-series datasets as vertically stacked Plotly subplots.
 
-    Arguments:
-    yAxisLabelOffset (bool): if True, adds an offset to the plots y-axis labels. Improves readability on long subplot names.
+    Each selected column is plotted in its own subplot. If multiple datasets are
+    provided, each subplot contains one trace per dataset for that column. An
+    optional `mode_data` subplot can be added above the signal subplots.
 
-    Returns:
-        fig (plotly.Figure):
+    Parameters
+    ----------
+    data : pandas.DataFrame | dict | array-like | list[pandas.DataFrame | dict | array-like]
+        One dataset or a list of datasets to plot. Non-DataFrame inputs are
+        converted to pandas DataFrames.
+
+    timestamp : str | int | None, default None
+        Column name or column index to set as the index for each dataset before
+        plotting. Ignored if `None`.
+
+    mode_data : pandas.DataFrame | pandas.Series | numpy.ndarray | list[...] | None, default None
+        Optional mode/categorical signal(s) to plot in a dedicated top subplot.
+        For DataFrame inputs, a ``Mode`` column is required. If a ``Time`` column
+        exists, it is used for the x-axis; otherwise the index is used.
+
+    discrete : bool, default False
+        If True, plot signal traces as markers only. If False, use the Plotly
+        mode specified by `mode`.
+
+    title : str | None, default None
+        Figure title.
+
+    use_columns : sequence[str] | None, default None
+        Columns to plot. If None, all columns from the first dataset are used.
+
+    height : int | None, default None
+        Figure height in pixels. If None, a default height is computed from the
+        number of subplots.
+
+    limit_num_points : int | None, default None
+        Maximum number of points to plot from each trace. If None or negative,
+        all available points are used.
+
+    names : sequence[str] | None, default None
+        Dataset names used in legend entries. If omitted, traces are named by
+        their dataset index.
+
+    xaxis_title : str | None, default None
+        Title applied to all x-axes.
+
+    customdata : pandas.DataFrame | array-like | None, default None
+        Extra per-point hover data. This is attached to each signal trace and
+        added to the hover tooltip. Row count should align with plotted points.
+
+    iterate_colors : bool, default True
+        If True, cycle through Plotly default colors per dataset. If False, use
+        the first default color for every dataset.
+
+    y_title_font_size : int, default 14
+        Font size used for subplot y-axis titles.
+
+    opacity : float, default 1.0
+        Opacity applied to generated trace colors.
+
+    vertical_spacing : float, default 0.005
+        Vertical spacing between subplot rows.
+
+    sharey : bool, default False
+        If True, share y-axes across subplot rows.
+
+    bounds : tuple[pandas.DataFrame, pandas.DataFrame] | None, default None
+        Pair of `(upper_bounds, lower_bounds)` DataFrames used to draw a filled
+        band for each plotted column.
+
+    plot_only_changes : bool, default False
+        Only relevant when `discrete=True`. If True, only points where the signal
+        changes are plotted, along with the first point.
+
+    yAxisLabelOffset : bool, default False
+        If True, progressively increases y-axis title standoff on lower subplots.
+
+    marker_size : int, default 4
+        Marker size for discrete and mode traces.
+
+    showlegend : bool, default False
+        Whether to display the figure legend.
+
+    mode_height : float, default 0.2
+        Relative height of the `mode_data` subplot, when present.
+
+    x_title : str | None, default None
+        Title applied only to the bottom x-axis.
+
+    **kwargs
+        Additional keyword arguments forwarded to `go.Scatter`.
+
+    Returns
+    -------
+    plotly.graph_objects.Figure
+        The generated Plotly figure.
+
+    Raises
+    ------
+    ValueError
+        If input data is missing, `mode_height` is invalid, or a mode trace is
+        missing its required columns.
+
+    KeyError
+        If one of the requested columns is not found in a dataset or bounds data.
+
+    Notes
+    -----
+    - The returned figure includes the selected columns only.
+    - If `mode_data` is provided, it occupies the first subplot row.
+    - `customdata` is filtered per trace when `plot_only_changes=True`.
     """
-
-    if limit_num_points is None or limit_num_points < 0:
-        limit_num_points = np.inf
-    if customdata is not None:
-        customdata = customdata.fillna('')
-    if type(data) is not list:
-        data = [data]
-
-    if len(data) == 0:
+    datasets = _normalize_datasets(data, timestamp=timestamp)
+    if not datasets:
         return go.Figure()
 
-    # if not panda data frame
-    for i in range(len(data)):
-        if not isinstance(data[i], pd.DataFrame):
-            data[i] = pd.DataFrame(data[i])
-
-    # if no timestamp is in the data
-    if timestamp is not None:
-        if type(timestamp) is str or type(timestamp) is int:
-            for i in range(len(data)):
-                data[i] = data[i].set_index(timestamp)
+    columns = _resolve_columns(datasets, use_columns)
+    customdata_df = _normalize_customdata(customdata)
+    limit_num_points = _normalize_point_limit(limit_num_points)
+    names = list(names) if names is not None else None
 
     if height is None:
-        height = max(800, len(data[0].columns) * 60)
+        height = max(800, len(columns) * 60) + 180
 
-    if use_columns is None:
-        columns = data[0].columns
-    else:
-        columns = use_columns
+    has_mode_row = mode_data is not None
+    fig = _make_timeseries_subplots(
+        num_signal_rows=len(columns),
+        has_mode_row=has_mode_row,
+        mode_height=mode_height,
+        vertical_spacing=vertical_spacing,
+        sharey=sharey,
+    )
 
-    num_rows = len(columns)
-    categories = []
-    if mode_data is not None:
-        num_rows += 1
-        fig = make_subplots(rows=num_rows, cols=1,
-                            row_heights=[mode_height] + [(1 - mode_height)/(num_rows - 1)]*(num_rows - 1),
-                            shared_xaxes=True, vertical_spacing=vertical_spacing,
-                        shared_yaxes=sharey)
-    else:
-        fig = make_subplots(rows=num_rows, cols=1, shared_xaxes=True, vertical_spacing=vertical_spacing,
-                            shared_yaxes=sharey)
+    row_offset = 0
+    mode_categories = []
 
+    if has_mode_row:
+        mode_categories = _add_mode_traces(
+            fig=fig,
+            mode_data=mode_data,
+            names=names,
+            iterate_colors=iterate_colors,
+            opacity=opacity,
+            marker_size=marker_size,
+            showlegend=showlegend,
+            scatter_kwargs=kwargs,
+        )
+        row_offset = 1
 
+    for col_idx, column in enumerate(columns, start=1):
+        row = col_idx + row_offset
+        for trace_idx, df in enumerate(datasets):
+            trace_name = _trace_name(trace_idx, names)
+            color = _trace_color(trace_idx, iterate_colors, opacity)
 
-    if mode_data is not None:
-        if not isinstance(mode_data, list):
-            mode_data = [mode_data]
-        k = -1
-        for md in mode_data:
-            k += 1
-            if iterate_colors:
-                color = DEFAULT_PLOTLY_COLORS[k % len(DEFAULT_PLOTLY_COLORS)]
-            else:
-                color = DEFAULT_PLOTLY_COLORS[0]
+            x, y = _extract_xy(df, column, limit_num_points)
+            trace_customdata = _slice_customdata(customdata_df, len(x))
 
-            if names:
-                trace_name = names[k]
-            else:
-                trace_name = str(k)
+            if discrete and plot_only_changes:
+                keep_idx = _changed_point_indices(y)
+                x = x[keep_idx]
+                y = y[keep_idx]
+                if trace_customdata is not None:
+                    trace_customdata = trace_customdata.iloc[keep_idx]
 
-            if isinstance(md, np.ndarray):
-                md = pd.DataFrame({timestamp:  np.arange(md.shape[0]), 'Mode': md})
-            elif isinstance(md, pd.Series):
-                md = pd.DataFrame(md)
-            categories.append(md['Mode'].drop_duplicates())
-            time_temp = md['Time'] if 'Time' in md else md.index
-            fig.add_trace(go.Scatter(x=time_temp, y=md['Mode'], mode='markers+lines',
-                                       name=trace_name, legendgroup=trace_name, line_shape='hv',
-                                       marker=dict(line_color=color, color=color, line_width=2, size=marker_size),
-                                       customdata=customdata, showlegend=showlegend, **kwargs), row=1, col=1)
-        i = 1
-    else:
-        i = 0
-    for col_ind in range(len(columns)):
-        i += 1
-        k = -1
-        for trace_ind, d in enumerate(data):
-            col_name = columns[col_ind]
+            hovertemplate = _build_hovertemplate(trace_customdata)
 
-            if names:
-                trace_name = names[trace_ind]
-            else:
-                trace_name = str(trace_ind)
+            _add_signal_trace(
+                fig=fig,
+                row=row,
+                x=x,
+                y=y,
+                trace_name=trace_name,
+                color=color,
+                discrete=discrete,
+                marker_size=marker_size,
+                customdata=trace_customdata,
+                hovertemplate=hovertemplate,
+                showlegend=(showlegend and col_idx == 1 and mode_data is None),
+                scatter_kwargs=kwargs.copy(),
+            )
 
-            hovertemplate = f"<b>Time:</b> %{{x}}<br><b>Event:</b> %{{y}}"
-            if customdata is not None:
-                hovertemplate += "<br><b>Context:</b>"
-                for ind, c in enumerate(customdata.columns):
-                    hovertemplate += f"<br>&nbsp;&nbsp;&nbsp;&nbsp;<em>{c}:</em> %{{customdata[{ind}]}}"
-
-            k += 1
-            if iterate_colors:
-                color = DEFAULT_PLOTLY_COLORS[k % len(DEFAULT_PLOTLY_COLORS)]
-            else:
-                color = DEFAULT_PLOTLY_COLORS[0]
-
-            color = f'rgba{color[3:-1]}, {str(opacity)})'
-            if len(d.index.names) > 1:
-                t = d.index.get_level_values(d.index.names[-1]).to_numpy()
-            else:
-                t = d.index.values
-            if d[col_name].dtype == tuple:
-                sig = d[col_name].astype(str).to_numpy()
-            else:
-                sig = d[col_name].to_numpy()
-            if discrete:
-                ind = min(limit_num_points, d.shape[0])
-                if plot_only_changes:
-                    ind = np.nonzero(np.not_equal(sig[0:ind - 1], sig[1:ind]))[0] + 1
-                    # sig = __d[col][0:min(limit_num_points, __d.shape[0])]
-                    ind = np.insert(ind, 0, 0)
-                    t = t[ind]
-                    sig = sig[ind]
-                    if customdata is not None:
-                        customdata = customdata[ind]
-                else:
-                    t = t[0:ind]
-                    sig = sig[0:ind]
-                    if customdata is not None:
-                        customdata = customdata[0:ind]
-
-                fig.add_trace(go.Scatter(x=t, y=sig, mode='markers', name=trace_name, legendgroup=trace_name,
-                                           marker=dict(line_color=color, color=color, line_width=2, size=marker_size),
-                                           customdata=customdata, hovertemplate=hovertemplate,
-                                           showlegend=(showlegend and col_ind == 0 and mode_data is None), **kwargs),
-                              row=i, col=1)
-            else:
-                ind = min(limit_num_points, d.shape[0])
-                fig.add_trace(go.Scatter(x=t[0:ind], y=sig[0:ind], mode=mode, name=trace_name, legendgroup=trace_name,
-                                           customdata=customdata,
-                                           line=dict(color=color, shape='linear'),
-                                           showlegend=(showlegend and col_ind == 0 and mode_data is None), **kwargs), row=i, col=1)
-            fig.update_yaxes(title_text=str(col_name), row=i, col=1, title_font=dict(size=y_title_font_size),
-                             categoryorder='category ascending')
-        if i % 2 == 0:
-            fig.update_yaxes(side="right", row=i, col=1)
-        if yAxisLabelOffset == True:
-            fig.update_yaxes(title_standoff=10 * i, row=i, col=1)
-        if xaxis_title is not None:
-            fig.update_xaxes(title=xaxis_title)
-        if bounds is not None:
-            upper_col = bounds[0].iloc[:, col_ind]
-            lower_vol = bounds[1].iloc[:, col_ind]
-            upper_bound = go.Scatter(
-                name='Upper Bound',
-                x=bounds[0].index.get_level_values(-1),
-                y=upper_col,
-                mode='lines',
-                marker=dict(color="#444"),
-                line=dict(width=0),
-                showlegend=False)
-            lower_bound = go.Scatter(
-                name='Lower Bound',
-                x=bounds[1].index.get_level_values(-1),
-                y=lower_vol,
-                marker=dict(color="#444"),
-                line=dict(width=0),
-                mode='lines',
-                fillcolor='rgba(68, 68, 68, 0.3)',
-                fill='tonexty',
-                showlegend=False)
-            fig.add_trace(upper_bound, row=i, col=1)
-            fig.add_trace(lower_bound, row=i, col=1)
-
-    if title is not None:
-        fig.update_layout(title={'text': title, 'x': 0.5}, autosize=True, height=height + 180, showlegend=showlegend)
-
-    if mode_data is not None:
-        categories = pd.concat(categories).drop_duplicates().to_list()
         fig.update_yaxes(
-            categoryorder='array',
+            title_text=str(column),
+            row=row,
+            col=1,
+            title_font=dict(size=y_title_font_size),
+            categoryorder="category ascending",
+        )
+
+        if row % 2 == 0:
+            fig.update_yaxes(side="right", row=row, col=1)
+
+        if yAxisLabelOffset:
+            fig.update_yaxes(title_standoff=10 * row, row=row, col=1)
+
+        if bounds is not None:
+            _add_bounds(fig, row, column, bounds)
+
+    _apply_layout(
+        fig=fig,
+        title=title,
+        height=height,
+        xaxis_title=xaxis_title,
+        showlegend=showlegend,
+    )
+
+    if has_mode_row and mode_categories:
+        categories = pd.concat(mode_categories).drop_duplicates().to_list()
+        fig.update_yaxes(
+            categoryorder="array",
             categoryarray=categories,
-            row=1, col=1
+            row=1,
+            col=1,
         )
 
     if x_title:
-        for i in reversed(range(1, 100)):
-            key = f"xaxis{i if i > 1 else ''}"
-            if key in fig.layout:
-                fig.layout[key].title = "Time [s]"
-                break
+        _set_bottom_xaxis_title(fig, x_title)
+
     return fig
+
+
+def _normalize_datasets(data, timestamp=None):
+    """Convert input data into a list of DataFrames and optionally set the index."""
+    if data is None:
+        raise ValueError("`data` must not be None.")
+
+    if not isinstance(data, list):
+        data = [data]
+
+    datasets = []
+    for item in data:
+        df = item if isinstance(item, pd.DataFrame) else pd.DataFrame(item)
+        if timestamp is not None and isinstance(timestamp, (str, int)):
+            df = df.set_index(timestamp)
+        datasets.append(df)
+
+    return datasets
+
+
+def _resolve_columns(datasets, use_columns=None):
+    """Resolve columns to plot and validate they exist in every dataset."""
+    columns = list(datasets[0].columns) if use_columns is None else list(use_columns)
+
+    for column in columns:
+        for idx, df in enumerate(datasets):
+            if column not in df.columns:
+                raise KeyError(f"Column '{column}' not found in dataset at index {idx}.")
+    return columns
+
+
+def _normalize_customdata(customdata):
+    """Convert custom hover data to a DataFrame and fill missing values."""
+    if customdata is None:
+        return None
+    if not isinstance(customdata, pd.DataFrame):
+        customdata = pd.DataFrame(customdata)
+    return customdata.fillna("")
+
+
+def _normalize_point_limit(limit_num_points):
+    """Convert point limit to a usable numeric cap."""
+    if limit_num_points is None or limit_num_points < 0:
+        return np.inf
+    return limit_num_points
+
+
+def _make_timeseries_subplots(num_signal_rows, has_mode_row, mode_height, vertical_spacing, sharey):
+    """Create the subplot layout for the figure."""
+    if has_mode_row:
+        if not (0 < mode_height < 1):
+            raise ValueError("`mode_height` must be between 0 and 1.")
+        total_rows = num_signal_rows + 1
+        row_heights = [mode_height] + [(1 - mode_height) / num_signal_rows] * num_signal_rows
+        return make_subplots(
+            rows=total_rows,
+            cols=1,
+            row_heights=row_heights,
+            shared_xaxes=True,
+            vertical_spacing=vertical_spacing,
+            shared_yaxes=sharey,
+        )
+
+    return make_subplots(
+        rows=num_signal_rows,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=vertical_spacing,
+        shared_yaxes=sharey,
+    )
+
+
+def _trace_name(index, names=None):
+    """Return a legend/trace name for a dataset index."""
+    if names is not None and index < len(names):
+        return names[index]
+    return str(index)
+
+
+def _trace_color(index, iterate_colors=True, opacity=1.0):
+    """Return an RGBA Plotly default color for a trace."""
+    base = (
+        DEFAULT_PLOTLY_COLORS[index % len(DEFAULT_PLOTLY_COLORS)]
+        if iterate_colors
+        else DEFAULT_PLOTLY_COLORS[0]
+    )
+    return f"rgba{base[3:-1]}, {opacity})"
+
+
+def _index_to_numpy(df):
+    """Return x-values from a DataFrame index, supporting MultiIndex."""
+    if len(df.index.names) > 1:
+        return df.index.get_level_values(df.index.names[-1]).to_numpy()
+    return df.index.to_numpy()
+
+
+def _series_to_numpy(series):
+    """Return y-values as a NumPy array, stringifying tuple-valued entries."""
+    if series.dtype == tuple:
+        return series.astype(str).to_numpy()
+    return series.to_numpy()
+
+
+def _extract_xy(df, column, limit_num_points):
+    """Extract x/y arrays for a single dataset column."""
+    n = int(min(limit_num_points, len(df)))
+    x = _index_to_numpy(df)[:n]
+    y = _series_to_numpy(df[column])[:n]
+    return x, y
+
+
+def _slice_customdata(customdata_df, length):
+    """Slice hover customdata to the same length as the plotted trace."""
+    if customdata_df is None:
+        return None
+    return customdata_df.iloc[:length].copy()
+
+
+def _changed_point_indices(values):
+    """Return indices for the first point and subsequent changes in value."""
+    if len(values) == 0:
+        return np.array([], dtype=int)
+    changed_idx = np.nonzero(np.not_equal(values[:-1], values[1:]))[0] + 1
+    return np.insert(changed_idx, 0, 0)
+
+
+def _build_hovertemplate(customdata_df):
+    """Build a hovertemplate including optional customdata columns."""
+    hovertemplate = "<b>Time:</b> %{x}<br><b>Event:</b> %{y}"
+    if customdata_df is not None:
+        hovertemplate += "<br><b>Context:</b>"
+        for idx, col in enumerate(customdata_df.columns):
+            hovertemplate += f"<br>&nbsp;&nbsp;&nbsp;&nbsp;<em>{col}:</em> %{{customdata[{idx}]}}"
+    return hovertemplate
+
+
+def _add_signal_trace(
+    fig,
+    row,
+    x,
+    y,
+    trace_name,
+    color,
+    discrete,
+    marker_size,
+    customdata,
+    hovertemplate,
+    showlegend,
+    scatter_kwargs,
+):
+    """Add a signal trace to the figure."""
+    if discrete:
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=y,
+                mode=scatter_kwargs.pop("mode", "markers"),
+                name=trace_name,
+                legendgroup=trace_name,
+                marker=dict(
+                    line_color=color,
+                    color=color,
+                    line_width=2,
+                    size=marker_size,
+                ),
+                customdata=customdata,
+                hovertemplate=hovertemplate,
+                showlegend=showlegend,
+                **scatter_kwargs,
+            ),
+            row=row,
+            col=1,
+        )
+    else:
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=y,
+                mode=scatter_kwargs.pop("mode", "lines+markers"),
+                name=trace_name,
+                legendgroup=trace_name,
+                line=dict(color=color, shape="linear"),
+                customdata=customdata,
+                hovertemplate=hovertemplate if customdata is not None else None,
+                showlegend=showlegend,
+                **scatter_kwargs,
+            ),
+            row=row,
+            col=1,
+        )
+
+
+def _normalize_mode_item(mode_item):
+    """Convert one mode input into a DataFrame with a required 'Mode' column."""
+    if isinstance(mode_item, np.ndarray):
+        return pd.DataFrame({"Time": np.arange(mode_item.shape[0]), "Mode": mode_item})
+
+    if isinstance(mode_item, pd.Series):
+        return pd.DataFrame({"Mode": mode_item})
+
+    if not isinstance(mode_item, pd.DataFrame):
+        mode_item = pd.DataFrame(mode_item)
+
+    if "Mode" not in mode_item.columns:
+        raise ValueError("Each `mode_data` item must contain a 'Mode' column.")
+
+    return mode_item
+
+
+def _add_mode_traces(
+    fig,
+    mode_data,
+    names,
+    iterate_colors,
+    opacity,
+    marker_size,
+    showlegend,
+    scatter_kwargs,
+):
+    """Add top-row mode traces and return their category series."""
+    mode_items = mode_data if isinstance(mode_data, list) else [mode_data]
+    categories = []
+
+    for idx, item in enumerate(mode_items):
+        md = _normalize_mode_item(item)
+        trace_name = _trace_name(idx, names)
+        color = _trace_color(idx, iterate_colors, opacity)
+        x = md["Time"] if "Time" in md.columns else md.index
+
+        categories.append(md["Mode"].drop_duplicates())
+
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=md["Mode"],
+                mode="lines+markers",
+                name=trace_name,
+                legendgroup=trace_name,
+                line_shape="hv",
+                marker=dict(
+                    line_color=color,
+                    color=color,
+                    line_width=2,
+                    size=marker_size,
+                ),
+                showlegend=showlegend,
+                **scatter_kwargs,
+            ),
+            row=1,
+            col=1,
+        )
+
+    return categories
+
+
+def _add_bounds(fig, row, column, bounds):
+    """Add upper/lower filled bound traces for one subplot row."""
+    upper_df, lower_df = bounds
+
+    if column not in upper_df.columns or column not in lower_df.columns:
+        raise KeyError(f"Bounds missing column '{column}'.")
+
+    upper_trace = go.Scatter(
+        name="Upper Bound",
+        x=upper_df.index.get_level_values(-1),
+        y=upper_df[column],
+        mode="lines",
+        marker=dict(color="#444"),
+        line=dict(width=0),
+        showlegend=False,
+    )
+
+    lower_trace = go.Scatter(
+        name="Lower Bound",
+        x=lower_df.index.get_level_values(-1),
+        y=lower_df[column],
+        mode="lines",
+        marker=dict(color="#444"),
+        line=dict(width=0),
+        fillcolor="rgba(68, 68, 68, 0.3)",
+        fill="tonexty",
+        showlegend=False,
+    )
+
+    fig.add_trace(upper_trace, row=row, col=1)
+    fig.add_trace(lower_trace, row=row, col=1)
+
+
+def _apply_layout(fig, title, height, xaxis_title, showlegend):
+    """Apply common layout settings to the figure."""
+    if title is not None:
+        fig.update_layout(title={"text": title, "x": 0.5})
+
+    if xaxis_title is not None:
+        fig.update_xaxes(title_text=xaxis_title)
+
+    fig.update_layout(
+        autosize=True,
+        height=height,
+        margin=dict(b=20, t=20),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="left",
+            x=0.02,
+        ),
+        showlegend=showlegend,
+    )
+
+
+def _set_bottom_xaxis_title(fig, x_title):
+    """Set the title of the bottom-most x-axis."""
+    for axis_num in reversed(range(1, 100)):
+        axis_key = f"xaxis{axis_num if axis_num > 1 else ''}"
+        if axis_key in fig.layout:
+            fig.layout[axis_key].title = x_title
+            return
 
 
 def plot_stateflow(stateflow, color_mapping=None, state_col='State', task_col='Task', bar_height=12,
@@ -259,9 +628,9 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', task_col='T
         for station, s in stateflow.items():
             if s.size:
                 sf = s[(~s[state_col].isin(idle_states))]
-                        # ((start_plot <= s.Time) &
-                        #  (s.Time <= finish_plot)) |
-                        # ((start_plot <= s.Finish) & (s.Finish <= finish_plot)))
+                # ((start_plot <= s.Time) &
+                #  (s.Time <= finish_plot)) |
+                # ((start_plot <= s.Finish) & (s.Finish <= finish_plot)))
                 sf[task_col] = station
                 # if sf.size > 0 and pd.isnull(sf['Finish'].iloc[-1]):
                 #     sf['Finish'].iloc[-1] = pd.to_datetime(finish_plot)
@@ -333,12 +702,12 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', task_col='T
 
         color = color_mapping.get(name, "black")
         traces.append(go.Scatter(x=x, y=y, line=dict(width=bar_height), name=name, line_color=color,
-                                   hoverinfo='skip', mode='lines', legendgroup=name, showlegend=True, opacity=0.8))
+                                 hoverinfo='skip', mode='lines', legendgroup=name, showlegend=True, opacity=0.8))
         traces.append(go.Scatter(x=np.asarray(g[start_column] + g.Duration / 2), y=g.Task, mode='text+markers',
-                                   marker=dict(size=5, color=color), name=name,
-                                   showlegend=False, opacity=0.8, customdata=custom_data,
-                                   hovertext=hovertext, text=text, textfont=dict(size=10, color='olive'),
-                                   hovertemplate=f'<extra></extra><b>{name}</b><br>%{{hovertext}}'))
+                                 marker=dict(size=5, color=color), name=name,
+                                 showlegend=False, opacity=0.8, customdata=custom_data,
+                                 hovertext=hovertext, text=text, textfont=dict(size=10, color='olive'),
+                                 hovertemplate=f'<extra></extra><b>{name}</b><br>%{{hovertext}}'))
 
     if return_figure:
         fig = go.Figure(data=traces)
@@ -436,12 +805,12 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
 #                        Optional params: rankDir='TB' (top-bottom), 'LR' (left-right), etc.
     """
 
-    
+
     if id is None:
         id = "graph"
 
     if color == "hsu":
-       color = "#B8234F"
+        color = "#B8234F"
     nodes = []
     edges = []
     for n in cps.discrete_states:
@@ -486,7 +855,7 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
                           'freq': freq})
 
         existing_edge = next((x for x in edges if x['data']['source'] == edge['data']['source'] and
-                             x['data']['target'] == edge['data']['target']), None)
+                              x['data']['target'] == edge['data']['target']), None)
         if existing_edge is None or split_edges_diff_event:
             if show_transition_freq:
                 edge['data']['label'] += f' #{freq}'
@@ -557,22 +926,22 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
 
 
     edge_style = {
-                'curve-style': 'bezier',
-                'background-color': 'white',  # Inner fill
-                'target-arrow-shape': 'triangle',
-                'target-arrow-color': color,
-                'target-arrow-size': 3,
-                'text-background-color': '#ffffff',
-                'text-background-opacity': 1,
-                'text-background-shape': 'roundrectangle',
-                'color': "#B8234F",
-                'width': 1,
-                'font-style': 'italic',
-                'font-family': "serif",
-                'text-wrap': 'wrap',
-                'font-size': edge_font_size,
-                'text-max-width': edge_text_max_width,
-                'line-color': color
+        'curve-style': 'bezier',
+        'background-color': 'white',  # Inner fill
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': color,
+        'target-arrow-size': 3,
+        'text-background-color': '#ffffff',
+        'text-background-opacity': 1,
+        'text-background-shape': 'roundrectangle',
+        'color': "#B8234F",
+        'width': 1,
+        'font-style': 'italic',
+        'font-family': "serif",
+        'text-wrap': 'wrap',
+        'font-size': edge_font_size,
+        'text-max-width': edge_text_max_width,
+        'line-color': color
     }
 
     if freq_as_edge_thickness:
@@ -588,11 +957,11 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
         {
             'selector': '.q0',
             'style': {
-                    'width': 1,  # Small width to make it look like a point
-                    'height': 1,  # Small height to make it look like a point
-                    'label': '',  # No label to keep it minimal
-                    'border-width': 0  # No border
-                }
+                'width': 1,  # Small width to make it look like a point
+                'height': 1,  # Small height to make it look like a point
+                'label': '',  # No label to keep it minimal
+                'border-width': 0  # No border
+            }
         },
         {
             'selector': '.final',
@@ -623,7 +992,7 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
                                  id=f"{id}-modal-state-data")
     modal_transition_data = dbc.Modal(children=[dbc.ModalHeader("Timings"),
                                                 dbc.ModalBody(html.Div(children=[]))],
-                                 id=f"{id}-modal-transition-data")
+                                      id=f"{id}-modal-transition-data")
     network = html.Div([title_text, network, modal_state_data, modal_transition_data], style={'width': '100%', 'height': '100%'})
 
     if output == "notebook":
@@ -796,8 +1165,8 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
 
 
 def plot_cps_plotly(cps, layout="dot", marker_size=20, node_positions=None, show_events=True, show_num_occur=False,
-                show_state_label=True, font_size=10, plot_self_transitions=True, use_previos_node_positions=False,
-                **kwargs):
+                    show_state_label=True, font_size=10, plot_self_transitions=True, use_previos_node_positions=False,
+                    **kwargs):
     """
     Visualizes a Cyber-Physical System (CPS) state-transition graph using Plotly.
     This function generates an interactive Plotly figure representing the states and transitions of a CPS.
@@ -955,8 +1324,8 @@ def plot_cps_plotly(cps, layout="dot", marker_size=20, node_positions=None, show
 
 
 def view_graphviz(self, layout="dot", marker_size=20, node_positions=None, show_events=True, show_num_occur=False,
-                show_state_label=True, font_size=10, plot_self_transitions=True, use_previos_node_positions=False,
-                **kwargs):
+                  show_state_label=True, font_size=10, plot_self_transitions=True, use_previos_node_positions=False,
+                  **kwargs):
     """
     Visualizes the internal graph structure using Graphviz and returns a pydot graph object.
     Parameters:
@@ -977,7 +1346,7 @@ def view_graphviz(self, layout="dot", marker_size=20, node_positions=None, show_
         - Annotations for transitions can include event names and/or occurrence counts.
         - The function prepares the graph for further rendering or export, but does not display it directly.
     """
-   
+
     graph = None
     if node_positions is None:
         if use_previos_node_positions:
@@ -1419,9 +1788,9 @@ def plot_2d_contour_from_fun(fun, rangex=None, rangey=None, th=50, **kwargs):
     contours = contours[0:1000:]
     return go.Contour(x=x, y=y, z=np.reshape(f, dx.shape), contours=dict(coloring='lines'), **kwargs)
     #dict(start=0,
-                                    # end=100,
-                                    # size=2,
-                                    # coloring='lines'), **kwargs)
+    # end=100,
+    # size=2,
+    # coloring='lines'), **kwargs)
 
 
 def plot3d(df, x=None, y=None, z=None, mode='markers', hovercolumns=None, **args):
