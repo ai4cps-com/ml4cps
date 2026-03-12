@@ -1,8 +1,20 @@
+import os
 from setuptools import setup, find_packages
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parent
+main_ns = {}
+exec((BASE_DIR / "selfx" / "version.py").read_text(encoding="utf-8"), main_ns) # pylint: disable=exec-used, consider-using-with
+
+def read_req_file(req_type):
+    with open(os.path.join("requirements", f"{req_type}.txt"), encoding="utf-8") as fp:
+        requires = (line.strip() for line in fp)
+        return [req for req in requires if req and not req.startswith("#")]
 
 setup(
     name="ml4cps",
-    version="0.1.192",
+    version=main_ns["__version__"],
     packages=find_packages(),
     install_requires=[
         'dash', 'pandas', 'networkx', 'plotly', 'numpy', 'dash_daq', 'dash-bootstrap-components', 'pydotplus',
