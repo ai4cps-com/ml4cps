@@ -3,7 +3,7 @@
 ML4CPS is a Python package for learning and analysis 
 of hybrid dynamical systems, with the focus on 
 Cyber-Physical Systems (CPS).
-The code was developed for several research publications ([bibtex](cite.bib)).
+The code was developed for several research publications ([bibtex](docs/cite.bib)).
 
 -   Website ([ml4cps.ai4cps.com](http://ml4cps.ai4cps.com))
 -   Contact ([contact@ai4cps.com](mailto:contact@ai4cps.com))
@@ -16,15 +16,8 @@ The code was developed for several research publications ([bibtex](cite.bib)).
 
 ## Data
 
-In folder "data" there are several datasets which can be easily loaded using examples module.
-E.g.
+In the folder "data" there are several datasets that can be easily loaded using the example module.
 
-```python
-
-from ml4cps import examples
-
-discrete_data, timestamp_col, discrete_vars = examples.conveyor_system_sfowl("discrete")
-```
 will load a dataset of a conveyor system from the SFOWL.
 
 ## Bugs
