@@ -1,0 +1,11 @@
+dash
+dash-bootstrap-components
+dash-extensions
+waitress
+networkx
+pandas
+flask
+flask-login
+flask-restful
+dill
+joblib

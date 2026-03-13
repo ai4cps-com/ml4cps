@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+
+recursive-include ml4cps *.py
+recursive-include requirements *.txt
+recursive-include notebooks *.ipynb
+
+global-exclude *.py[cod]
+global-exclude __pycache__
