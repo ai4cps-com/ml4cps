@@ -1,3 +1,4 @@
+import io
 import os
 from setuptools import setup, find_packages
 from pathlib import Path
@@ -15,21 +16,48 @@ def read_req_file(req_type):
 setup(
     name="ml4cps",
     version=main_ns["__version__"],
-    packages=find_packages(),
-    install_requires=[
-        'dash', 'pandas', 'networkx', 'plotly', 'numpy', 'dash_daq', 'dash-bootstrap-components', 'pydotplus',
-        'dash-cytoscape', 'simpy', 'mlflow', 'torch', 'z3-solver', 'scipy', 'sphinx', 'matplotlib', 'scikit-learn',
-        'fastdtw', 'openai', 'loguru', 'regex', 'Levenshtein', 'tqdm', 'gymnasium'
-    ],
     author="Nemanja Hranisavljevic & Tom Westermann",
     author_email="nemanja@ai4cps.com",
+    packages=find_packages(exclude=["tests*"]),
+    include_package_data=True,
+    license="MIT",
     description="Tools for learning, plotting, analyzing etc. of discrete, continuous, timed, and "
                 "hybrid cyber-physical systems.",
-    url="https://github.com/ai4cps-com/ml4cps",
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-    ],
+    long_description=io.open("README.md", encoding="utf-8").read(), # pylint: disable=consider-using-with
+    install_requires=read_req_file("install"),
     python_requires='>=3.6',
+    extras_require={
+        "dev": read_req_file("dev"),
+    },
+    entry_points={
+        "console_scripts": [],
+        "pytest11": [],
+    },
+    url="https://ml4cps.ai4cps.com",
+    project_urls={
+        "Documentation": "https://ml4cps.ai4cps.com",
+        "Source": "https://github.com/ai4cps-com/ml4cps",
+        "Issue Tracker": "https://github.com/ai4cps-com/ml4cps/issues",
+    },
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Education",
+        "Intended Audience :: Manufacturing",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Topic :: Scientific/Engineering :: Visualization",
+        "Topic :: Software Development :: Libraries :: Application Frameworks",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Scientific/Engineering :: Information Analysis",
+    ],
+    data_files=[],
+
 )
