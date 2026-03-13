@@ -27,7 +27,13 @@ markdown_extensions:
   - admonition
   - fenced_code
   - tables
-  - pymdownx.snippets
+  - pymdownx.highlight
+  - pymdownx.snippets:
+      base_path:
+        - .
   - pymdownx.superfences
   - toc:
       permalink: true
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true

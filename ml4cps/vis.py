@@ -1197,7 +1197,6 @@ def plot_cps_plotly(cps, layout="dot", marker_size=20, node_positions=None, show
     """
     # layout = 'kamada_kawai'  # TODO
     edge_scatter_lines = None
-    annotations = []
     if node_positions is None:
         if use_previos_node_positions:
             node_positions = cps.previous_node_positions
@@ -1211,10 +1210,7 @@ def plot_cps_plotly(cps, layout="dot", marker_size=20, node_positions=None, show
                     graph.add_node(pdp.Node(nnn, shape='point'))
                 graph.set_prog('dot')
                 graph = graph.create(format="dot")
-                # graph.
-                # graph.write_dot('temp.dot')
-                # graph.write_svg('temp.svg')
-                # graph = pdp.graph_from_dot_file('temp.dot')
+
                 graph = pdp.graph_from_dot_data(graph)
                 node_positions = {n.get_name().strip('"'): tuple(float(x) for x in n.get_pos()[1:-1].split(','))
                                   for n in graph.get_nodes() if

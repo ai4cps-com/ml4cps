@@ -698,7 +698,11 @@ class Automaton (CPSComponent):
         """
         s = f'<b>{str(v)}</b>'
         for tr in self.out_transitions(v):
-            s += f"<br>{tr[2]} -> {tr[1]} [{self.num_occur(tr[0], tr[2])}]"
+            try:
+                num_occur = f'[{self.num_occur(tr)}]'
+            except:
+                num_occur = '/'
+            s += f"<br>{tr[2]} -> {tr[1]} {num_occur}"
         return s
 
     def sample_initial(self):

@@ -1,16 +1,13 @@
 # Getting Started
 
 ## Basic usage
-```python
-import ml4cps as at
+=== "Code"
 
-A = at.Automaton()
-A.add_states_from(["s1", "s2", "s3"])
-A.add_transitions_from([("s1", "s2", "e1"),
-                        ("s2", "s3", "e1"),
-                        ("s3", "s1", "e2")])
+    ```python title="tiny_example.py"
+    --8<-- "tests/tiny_example.py"
+    ```
 
-print(A)
-A.view_plotly().show()
-```
+=== "Result"
+
+    ![Tiny Example Output](tiny_example.png)
 
