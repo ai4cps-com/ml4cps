@@ -34,4 +34,4 @@ If you find any bugs, please contact us at [bugs@ai4cps.com](mailto:bugs@ai4cps.
 ## License
 
 See [LICENSE](LICENSE).  
-If you use this code in your research please [cite](cite.bib) our work. 
+If you use this code in your research, please [cite](docs/cite.bib) our work. 
