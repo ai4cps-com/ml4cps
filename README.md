@@ -18,7 +18,6 @@ The code was developed for several research publications ([bibtex](docs/cite.bib
 
 In the folder "data" there are several datasets that can be easily loaded using the example module.
 
-will load a dataset of a conveyor system from the SFOWL.
 
 ## Bugs
 If you find any bugs, please contact us at [bugs@ai4cps.com](mailto:bugs@ai4cps.com).
