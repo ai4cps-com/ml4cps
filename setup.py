@@ -5,7 +5,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 main_ns = {}
-exec((BASE_DIR / "selfx" / "version.py").read_text(encoding="utf-8"), main_ns) # pylint: disable=exec-used, consider-using-with
+exec((BASE_DIR / "ml4cps" / "version.py").read_text(encoding="utf-8"), main_ns) # pylint: disable=exec-used, consider-using-with
 
 def read_req_file(req_type):
     with open(os.path.join("requirements", f"{req_type}.txt"), encoding="utf-8") as fp:
