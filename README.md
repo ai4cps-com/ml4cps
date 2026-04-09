@@ -1,3 +1,5 @@
+[![Sponsor](https://img.shields.io/badge/Sponsor-❤-ff69b4)](https://github.com/sponsors/ai4cps-com)
+
 # ML4CPS
 ML4CPS is a Python package for learning and analysis 
 of hybrid dynamical systems, with the focus on 
