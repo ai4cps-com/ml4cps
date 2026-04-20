@@ -9,3 +9,4 @@ ml4cps/mlruns/
 mlruns/
 ml4cps.egg-info/
 build/
+data/
