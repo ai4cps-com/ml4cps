@@ -177,7 +177,7 @@ def simple_learn_from_event_logs(data, initial=True, count_repetition=True, verb
     return a
 
 
-def simple_learn_from_signal_vectors(data, drop_no_changes=False, verbose=False):
+def simple_learn_from_signal_vectors(data, drop_no_changes=True, verbose=False):
     """
     Learns a timed automaton from a list of signal vector dataframes.
     This function processes sequences of signal vectors (as pandas DataFrames), detects changes in the specified
@@ -339,11 +339,14 @@ def build_pta(data, event_col='event', boundaries=1):
             if isinstance(seq, pd.Series):
                 seq.name = event_col
             seq = pd.DataFrame(seq).reset_index(drop=False)
-        old_t = seq[seq.columns[0]].iloc[0]
+        # old_t = seq[seq.columns[0]].iloc[0] # Instead I will assume index is time
+        old_t = seq.index[0]
         curr_stat = "q0"
-        time_col = seq.columns[0]
-        seq = seq[[time_col, event_col]] #.iloc[1:]
-        for t, event in seq.itertuples(index=False, name=None):
+        # time_col = seq.columns[0]
+        seq = seq[[event_col]] #.iloc[1:]
+        for t, event in seq.itertuples(index=True, name=None):
+            if pd.isna(event):
+                continue # Maybe inform about this
             dt = t - old_t
             # if event in boundaries and curr_stat != "q0":
             #     sub_event = 1 + next(ii for ii, tt in enumerate(boundaries[event]) if dt >= tt)

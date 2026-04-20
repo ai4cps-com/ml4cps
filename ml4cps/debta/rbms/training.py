@@ -6,8 +6,8 @@ import pprint
 import torch
 from torch.utils.data import DataLoader
 
-from denta.denta_tools import mse, sparsity, bce
-from denta.rbms.base import XBinaryRBM
+from ml4cps.debta.debta_tools import mse, sparsity, bce
+from ml4cps.debta.rbms.base import XBinaryRBM
 
 
 def train_rbm(
@@ -99,6 +99,8 @@ def train_rbm(
         if isinstance(train_data, (list, tuple)):
             train_data = torch.vstack(train_data)
 
+        if train_data.ndim == 3:
+            train_data = train_data.squeeze(1)
         train_data = rbm.prepare_input(train_data).float().to(rbm.device)
         data_loader = DataLoader(train_data, batch_size=batch_size, shuffle=shuffle, drop_last=loss_name == "pcd")
 
@@ -109,6 +111,9 @@ def train_rbm(
                 valid_data = valid_data[0]
         elif isinstance(valid_data, (list, tuple)):
             valid_data = torch.vstack(valid_data)
+
+        if valid_data.ndim == 3:
+            valid_data = valid_data.squeeze(1)
         valid_data = rbm.prepare_input(valid_data).float().to(rbm.device)
 
     train_batch = next(iter(data_loader))
@@ -378,9 +383,19 @@ def _get_progress_rbm(rbm, d: torch.Tensor):
         r, h = rbm.recon(d)
         e = rbm.free_energy(d)
 
+        d_flat = d.reshape(d.shape[0], -1)
+        r_flat = r.reshape(r.shape[0], -1)
+
+        # BCE is only valid for probabilities/targets in [0, 1].
+        # On CUDA, out-of-range BCE inputs can trigger device-side asserts.
+        d_in_unit = bool(torch.isfinite(d_flat).all() and (d_flat >= 0).all() and (d_flat <= 1).all())
+        r_in_unit = bool(torch.isfinite(r_flat).all() and (r_flat >= 0).all() and (r_flat <= 1).all())
+        bce_val = bce(d_flat, r_flat).item() if d_in_unit and r_in_unit else None
+
+        mse_val = mse(d_flat, r_flat).item()
         progress = dict(
-            MSE=mse(d.view(d.shape[0], -1), r).item(),
-            BCE=bce(d.view(d.shape[0], -1), r).item(),
+            MSE=mse_val,
+            BCE=bce_val,
             Sparsity=sparsity(h).item(),
             Energy=torch.mean(e).item(),
             Weights=torch.mean(torch.abs(rbm.weights)).item(),

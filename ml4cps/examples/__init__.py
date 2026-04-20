@@ -1,7 +1,23 @@
-"""
-    Author: Nemanja Hranisavljevic, hranisan@hsu-hh.de
+"""Example systems and datasets exposed by the ml4cps.examples package."""
 
-    Description: The module provides example systems and datasets.
-"""
+from .examples import (
+    BuckConverter,
+    TunnelOven,
+    buck_converter,
+    conveyor_system_sfowl,
+    mnist,
+    simple_conveyor,
+    simple_conveyor_8_states,
+    tunnel_oven,
+)
 
-from ml4cps.examples.examples import *
+__all__ = [
+    "BuckConverter",
+    "TunnelOven",
+    "buck_converter",
+    "conveyor_system_sfowl",
+    "mnist",
+    "simple_conveyor",
+    "simple_conveyor_8_states",
+    "tunnel_oven",
+]

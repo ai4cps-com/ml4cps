@@ -118,15 +118,45 @@ def filter_signals(data, sig_names):
 
 
 def create_events_from_signal_vectors(data, sig_names=None):
+    if isinstance(data, pd.DataFrame):
+        data = [data]
+
     for d in data:
-        if sig_names is None:
-            sig_names = d.columns
-        sig_values = d[sig_names]
-        d.loc[:, "event"] = sig_values.diff().apply(lambda x: ' '.join(x.astype(str)).replace(".0", ""), 1)
-        d.loc[0, "event"] = np.nan
-        # d.drop(columns=signals)
-        # d["dt"] = d[time].diff().shift(-1)
-        # new_data.append(d)
+        if len(d.index) == 0:
+            d.loc[:, "event"] = pd.Series(dtype="object")
+            continue
+
+        current_sig_names = d.columns if sig_names is None else sig_names
+        sig_values = d[current_sig_names]
+
+        def _format_numeric_change(column_name, previous_value, current_value):
+            return None if current_value == previous_value else\
+                f"{column_name}<-{str(current_value).replace('.0', '')}"
+
+        def _format_string_transition(column_name, previous_value, current_value):
+            return None if current_value == previous_value else f"{column_name}<-{current_value}"
+
+        events = []
+        for row_pos, (_, row) in enumerate(sig_values.iterrows()):
+            current_row = sig_values.iloc[row_pos]
+            previous_row = sig_values.iloc[row_pos - 1] if row_pos > 0 else current_row
+
+            formatted_parts = []
+            for column_name, change_value in row.items():
+                current_value = current_row[column_name]
+                previous_value = previous_row[column_name]
+
+                if isinstance(current_value, str) or isinstance(previous_value, str):
+                    event = _format_string_transition(column_name, previous_value, current_value)
+                else:
+                    event = _format_numeric_change(column_name, previous_value, current_value)
+                if event is not None:
+                    formatted_parts.append(event)
+
+            events.append(" ".join(formatted_parts))
+
+        d.loc[:, "event"] = events
+        d.loc[d.index[0], "event"] = pd.NA
     return data
 
 def create_events_from_concurent_logs(data):
@@ -320,6 +350,39 @@ def compute_purity(cluster_assignments, class_assignments):
     purity = total_intersection / num_samples
 
     return purity
+
+
+def check_latent_purity(model, data_loader):
+    model.eval()
+
+    xs = []
+    ys = []
+
+    for x, y in data_loader:
+        xs.append(x)
+        ys.append(y)
+
+    x = torch.cat(xs, dim=0).to(model.device)
+    labels = torch.cat(ys, dim=0).cpu().numpy()
+
+    with torch.no_grad():
+        h_prob = model.v2h(x)              # hidden activation probabilities
+        h_code = torch.round(h_prob)       # binary latent codes: 0/1
+
+    h_code = h_code.cpu().int().numpy()
+
+    # compute_purity can convert multi-column binary codes into cluster strings
+    h_df = pd.DataFrame(
+        h_code,
+        columns=[f"h{i}" for i in range(h_code.shape[1])],
+    )
+
+    purity = compute_purity(
+        cluster_assignments=h_df,
+        class_assignments=labels,
+    )
+
+    return purity, h_df, labels
 
 
 def composite_f1_score(anom_labels, start_event_idx, true_anom_idx):

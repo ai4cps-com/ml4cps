@@ -1,4 +1,4 @@
-dash
+dash==3.4.0
 dash-bootstrap-components
 dash-extensions
 waitress
@@ -10,3 +10,9 @@ flask-restful
 dill
 joblib
 mlflow
+imageio
+imageio[ffmpeg]
+torch
+graphviz
+pydot
+nbformat

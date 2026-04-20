@@ -1,9 +1,13 @@
 import datetime
-from ml4cps import tools, vis
+import warnings
+
+from ml4cps import vis
 from ml4cps.automata.base import Automaton
 import numpy as np
 import pandas as pd
 import os
+import torch
+from torch.utils.data import DataLoader, Subset, random_split
 
 
 def simple_conveyor_8_states():
@@ -316,6 +320,75 @@ def tunnel_oven(complexity='111'):
     model = TunnelOven()
     res = model.simulate(finish_time=10)
     return res
+
+
+def mnist(
+    data_dir: str = "./data",
+    batch_size: int = 64,
+    train_subset: int = -1,
+    test_subset: int = -1,
+    validation_split: float = 0.2,
+    random_seed: int = 42,
+) -> tuple[DataLoader, DataLoader, DataLoader]:
+    try:
+        from torchvision import datasets, transforms
+    except ImportError as exc:
+        raise ImportError("Torchvision not installed") from exc
+
+    transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: x.view(-1)),
+        ]
+    )
+
+    train_dataset = datasets.MNIST(
+        root=data_dir,
+        train=True,
+        download=True,
+        transform=transform,
+    )
+    test_dataset = datasets.MNIST(
+        root=data_dir,
+        train=False,
+        download=True,
+        transform=transform,
+    )
+
+    if train_subset != -1:
+        train_dataset = Subset(train_dataset, range(min(train_subset, len(train_dataset))))
+
+    if test_subset != -1:
+        test_dataset = Subset(test_dataset, range(min(test_subset, len(test_dataset))))
+
+    if not 0 < validation_split < 1:
+        raise ValueError("validation_split must be between 0 and 1.")
+
+    validation_size = int(len(train_dataset) * validation_split)
+    training_size = len(train_dataset) - validation_size
+    train_dataset, validation_dataset = random_split(
+        train_dataset,
+        [training_size, validation_size],
+        generator=torch.Generator().manual_seed(random_seed),
+    )
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        drop_last=False,
+    )
+    validation_loader = DataLoader(
+        validation_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+    return train_loader, validation_loader, test_loader
 
 
 if __name__ == "__main__":

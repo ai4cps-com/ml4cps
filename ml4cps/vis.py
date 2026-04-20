@@ -5,6 +5,7 @@
     - Nemanja Hranisavljevic, hranisan@hsu-hh.de, nemanja@ai4cps.com
     - Tom Westermann, tom.westermann@hsu-hh.de, tom@ai4cps.com
 """
+from __future__ import annotations
 
 from ml4cps.cps import CPS
 from plotly import graph_objects as go
@@ -22,7 +23,11 @@ from dash import html, Dash, dcc, Output, Input
 import dash_bootstrap_components as dbc
 from plotly.subplots import make_subplots
 import time, webbrowser, threading
-
+from copy import deepcopy
+from pathlib import Path
+from typing import Optional, Sequence
+import imageio.v2 as imageio
+import plotly.io as pio
 
 def plot_timeseries(
     data,
@@ -1164,7 +1169,7 @@ def plot_cps(cps: CPS, dash_id=None, node_labels=False, edge_labels=True, node_s
     return network
 
 
-def plot_cps_plotly(cps, layout="dot", marker_size=20, node_positions=None, show_events=True, show_num_occur=False,
+def plot_cps_plotly(cps, layout="kamada_kawai", marker_size=20, node_positions=None, show_events=True, show_num_occur=False,
                     show_state_label=True, font_size=10, plot_self_transitions=True, use_previos_node_positions=False,
                     **kwargs):
     """
@@ -1811,3 +1816,385 @@ def plot3d(df, x=None, y=None, z=None, mode='markers', hovercolumns=None, **args
         for ind, c in enumerate(hovercolumns):
             hovertemplate += f"<br>{c}: %{{customdata[{ind}]}}"
     return go.Scatter3d(x=df[x], y=df[y], z=df[z], mode=mode, customdata=customdata, hovertemplate=hovertemplate, **args)
+
+
+def export_plotly_frames_animation_cumulative(
+    fig: go.Figure,
+    output_path: str,
+    fps: int = 5,
+    width: int = 1200,
+    height: int = 800,
+    scale: int = 2,
+    cleanup_frames: bool = True,
+    frame_dir: Optional[str] = None,
+) -> str:
+    """
+    Export a Plotly animated figure by cumulatively applying go.Frame updates.
+    This better matches Plotly's animation behavior for partial frame updates.
+    """
+
+    if not fig.frames:
+        raise ValueError("The figure has no frames.")
+
+    output = Path(output_path)
+    suffix = output.suffix.lower()
+
+    if suffix not in {".gif", ".mp4"}:
+        raise ValueError("output_path must end with '.gif' or '.mp4'.")
+
+    frames_folder = Path(frame_dir) if frame_dir else output.with_name(f"{output.stem}_frames")
+    frames_folder.mkdir(parents=True, exist_ok=True)
+
+    state_fig = go.Figure(data=deepcopy(fig.data), layout=deepcopy(fig.layout))
+    rendered_paths = []
+
+    for i, frame in enumerate(fig.frames):
+        # Apply data updates onto persistent state.
+        if frame.data:
+            target_traces = frame.traces if frame.traces is not None else list(range(len(frame.data)))
+            for trace_update, trace_index in zip(frame.data, target_traces):
+                while trace_index >= len(state_fig.data):
+                    state_fig.add_trace(go.Scatter())
+                state_fig.data[trace_index] = trace_update
+
+        # Apply layout updates onto persistent state.
+        if frame.layout:
+            state_fig.update_layout(frame.layout)
+
+        png_path = frames_folder / f"frame_{i:04d}.png"
+        pio.write_image(state_fig, str(png_path), width=width, height=height, scale=scale)
+        rendered_paths.append(png_path)
+
+    images = [imageio.imread(path) for path in rendered_paths]
+
+    if suffix == ".gif":
+        imageio.mimsave(str(output), images, fps=fps)
+    else:
+        with imageio.get_writer(str(output), fps=fps) as writer:
+            for img in images:
+                writer.append_data(img)
+
+    if cleanup_frames:
+        for path in rendered_paths:
+            path.unlink(missing_ok=True)
+        try:
+            frames_folder.rmdir()
+        except OSError:
+            pass
+
+    return str(output)
+
+
+
+def export_plotly_frames_animation(
+    fig: go.Figure,
+    output_path: str,
+    fps: int = 5,
+    width: int = 1200,
+    height: int = 800,
+    scale: int = 2,
+    cleanup_frames: bool = True,
+    frame_dir: Optional[str] = None,
+) -> str:
+    if not fig.frames:
+        raise ValueError("The figure has no frames.")
+
+    output = Path(output_path)
+    suffix = output.suffix.lower()
+    if suffix not in {".gif", ".mp4"}:
+        raise ValueError("output_path must end with '.gif' or '.mp4'.")
+
+    frames_folder = Path(frame_dir) if frame_dir else output.with_name(f"{output.stem}_frames")
+    frames_folder.mkdir(parents=True, exist_ok=True)
+
+    # Persistent state figure
+    state_fig = go.Figure(data=deepcopy(fig.data), layout=deepcopy(fig.layout))
+    rendered_paths = []
+
+    for i, frame in enumerate(fig.frames):
+        # Convert tuple -> list so we can replace traces safely
+        current_data = list(deepcopy(state_fig.data))
+
+        if frame.data:
+            if frame.traces is not None:
+                for trace_update, trace_index in zip(frame.data, frame.traces):
+                    current_data[trace_index] = trace_update
+            else:
+                for j, trace_update in enumerate(frame.data):
+                    if j < len(current_data):
+                        current_data[j] = trace_update
+                    else:
+                        current_data.append(trace_update)
+
+        # Rebuild figure from updated trace list
+        current_fig = go.Figure(data=current_data, layout=deepcopy(state_fig.layout))
+
+        if frame.layout:
+            current_fig.update_layout(frame.layout)
+
+        # Update persistent state so next frame is cumulative
+        state_fig = go.Figure(data=deepcopy(current_fig.data), layout=deepcopy(current_fig.layout))
+
+        png_path = frames_folder / f"frame_{i:04d}.png"
+        pio.write_image(current_fig, str(png_path), width=width, height=height, scale=scale)
+        rendered_paths.append(png_path)
+
+    images = [imageio.imread(path) for path in rendered_paths]
+
+    if suffix == ".gif":
+        imageio.mimsave(str(output), images, fps=fps)
+    else:
+        with imageio.get_writer(str(output), fps=fps) as writer:
+            for img in images:
+                writer.append_data(img)
+
+    if cleanup_frames:
+        for path in rendered_paths:
+            path.unlink(missing_ok=True)
+        try:
+            frames_folder.rmdir()
+        except OSError:
+            pass
+
+    return str(output)
+
+
+
+def add_time_frames_to_subplots(
+    fig: go.Figure,
+    trace_indices: Optional[Sequence[int]] = None,
+    frame_duration_ms: int = 80,
+    transition_duration_ms: int = 0,
+    redraw: bool = False,
+    keep_tail: bool = True,
+    sort_each_trace_by_x: bool = True,
+    frame_stride: int = 1,
+    slider_prefix: str = "Time: ",
+    title_prefix: Optional[str] = None,
+) -> go.Figure:
+    """
+    Add animation frames to a subplot figure where each subplot has one scatter trace
+    and x represents time.
+
+    Parameters
+    ----------
+    fig : go.Figure
+        A subplot figure.
+    trace_indices : sequence[int] | None
+        Which traces to animate. If None, animate all traces in fig.data.
+    frame_duration_ms : int
+        Duration of each frame in milliseconds.
+    transition_duration_ms : int
+        Duration of frame transition in milliseconds.
+    redraw : bool
+        Passed to Plotly animation args.
+    keep_tail : bool
+        If True, each frame shows all points up to time t.
+        If False, each frame shows only the current point for each trace.
+    sort_each_trace_by_x : bool
+        If True, sort each trace by its own x values before animating.
+    frame_stride : int
+        Use every n-th point to reduce number of frames.
+    slider_prefix : str
+        Prefix shown before current slider value.
+    title_prefix : str | None
+        Optional title prefix, e.g. "t = ".
+
+    Returns
+    -------
+    go.Figure
+        The same figure, updated in place with frames and controls.
+    """
+
+    if frame_stride < 1:
+        raise ValueError("frame_stride must be >= 1")
+
+    if trace_indices is None:
+        trace_indices = list(range(len(fig.data)))
+    else:
+        trace_indices = list(trace_indices)
+
+    if not trace_indices:
+        raise ValueError("No traces selected for animation")
+
+    time_steps = []
+    for trace_idx in trace_indices:
+        if trace_idx >= len(fig.data):
+            raise IndexError(f"trace_index={trace_idx} out of range for figure with {len(fig.data)} traces")
+
+        tr = fig.data[trace_idx]
+
+        if not hasattr(tr, "x") or not hasattr(tr, "y"):
+            raise TypeError(f"Trace {trace_idx} does not have x/y data")
+
+        x = list(tr.x) if tr.x is not None else []
+        y = list(tr.y) if tr.y is not None else []
+
+        if len(x) == 0 or len(y) == 0:
+            raise ValueError(f"Trace {trace_idx} has empty x or y data")
+        if len(x) != len(y):
+            raise ValueError(f"Trace {trace_idx}: x and y must have same length")
+
+        time_steps += x
+
+    time_steps = np.sort(np.unique(time_steps))
+    # Use the shortest trace length so all subplots stay synchronized
+    n_frames = len(time_steps) // frame_stride
+    if n_frames == 0:
+        raise ValueError("No frames can be created")
+
+    frames = []
+    slider_steps = []
+
+    for k in range(1, n_frames + 1):
+        frame_data = []
+
+        for p in fig.data:
+            frame_ind_mask = p['x'] <= time_steps[k-1]
+            xk = p["x"][frame_ind_mask]
+            yk = p["y"][frame_ind_mask]
+            textk = p["text"][frame_ind_mask] if p["text"] is not None else None
+            customdatak = p["customdata"][frame_ind_mask] if p["customdata"] is not None else None
+            idsk = p["ids"][frame_ind_mask] if p["ids"] is not None else None
+
+            frame_data.append(
+                go.Scatter(
+                    x=xk,
+                    y=yk,
+                    text=textk,
+                    customdata=customdatak,
+                    ids=idsk,
+                    mode=p["mode"],
+                    marker=p["marker"],
+                    line=p["line"],
+                    name=p["name"],
+                    hovertemplate=p["hovertemplate"],
+                )
+            )
+
+        frame_name = f"frame_{k - 1}"
+        current_time = time_steps[k - 1]
+
+        frame_layout = {}
+        if title_prefix is not None:
+            frame_layout["title"] = {"text": f"{title_prefix}{current_time}"}
+
+        frames.append(
+            go.Frame(
+                name=frame_name,
+                data=frame_data,
+                traces=None,
+                layout=frame_layout if frame_layout else None,
+            )
+        )
+
+        slider_steps.append(
+            {
+                "method": "animate",
+                "label": str(current_time),
+                "args": [
+                    [frame_name],
+                    {
+                        "frame": {"duration": frame_duration_ms, "redraw": redraw},
+                        "transition": {"duration": transition_duration_ms},
+                        "mode": "immediate",
+                    },
+                ],
+            }
+        )
+
+    fig.frames = frames
+
+    fig.update_layout(
+        updatemenus=[
+            {
+                "type": "buttons",
+                "direction": "left",
+                "showactive": False,
+                "x": 0.1,
+                "y": -0.12,
+                "buttons": [
+                    {
+                        "label": "Play",
+                        "method": "animate",
+                        "args": [
+                            None,
+                            {
+                                "frame": {"duration": frame_duration_ms, "redraw": redraw},
+                                "transition": {"duration": transition_duration_ms},
+                                "fromcurrent": True,
+                                "mode": "immediate",
+                            },
+                        ],
+                    },
+                    {
+                        "label": "Pause",
+                        "method": "animate",
+                        "args": [
+                            [None],
+                            {
+                                "frame": {"duration": 0, "redraw": redraw},
+                                "transition": {"duration": 0},
+                                "mode": "immediate",
+                            },
+                        ],
+                    },
+                ],
+            }
+        ],
+        sliders=[
+            {
+                "active": 0,
+                "x": 0.1,
+                "y": -0.08,
+                "len": 0.85,
+                "pad": {"t": 20},
+                "currentvalue": {"prefix": slider_prefix},
+                "steps": slider_steps,
+            }
+        ],
+    )
+
+    return fig
+
+
+def plot_images(images):
+    fig = make_subplots(
+        rows=4,
+        cols=4,
+        horizontal_spacing=0.01,
+        vertical_spacing=0.01,
+    )
+
+    for i, img in enumerate(images[:16]):
+        row = i // 4 + 1
+        col = i % 4 + 1
+
+        if hasattr(img, "detach"):  # torch.Tensor
+            img = img.detach().cpu().numpy()
+
+        img = np.asarray(img)
+
+        fig.add_trace(
+            go.Heatmap(
+                z=img,
+                colorscale=[[0, "black"], [1, "white"]],
+                zmin=0,
+                zmax=1,
+                showscale=False,
+                hoverinfo="skip",
+            ),
+            row=row,
+            col=col,
+        )
+
+    fig.update_xaxes(visible=False)
+    fig.update_yaxes(visible=False, autorange="reversed")
+
+    fig.update_layout(
+        width=600,
+        height=600,
+        margin=dict(l=0, r=0, t=0, b=0),
+        plot_bgcolor="white",
+    )
+    return fig

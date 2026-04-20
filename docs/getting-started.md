@@ -27,3 +27,6 @@
 
 - [Conveyor system SFOWL discrete data analysis](notebooks/Conveyors_SFOWL_discrete.ipynb)
 - [Conveyor system SFOWL continuous data analysis](notebooks/Conveyors_SFOWL_cont.ipynb)
+
+## MNIST dataset example
+tests/debta_mnist.py

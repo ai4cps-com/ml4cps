@@ -4,7 +4,7 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 import torch
-from denta.rbms.base import XBinaryRBM
+from ml4cps.debta.rbms.base import XBinaryRBM
 
 
 class GaussianBinaryRBM(XBinaryRBM):
@@ -69,8 +69,8 @@ class GaussianBinaryRBM(XBinaryRBM):
         n_visible: int,
         n_hidden: int,
         device: str = "cpu",
-        sigma_learnable: bool = False,
         sigma: float = 1.0,
+        log_sigma_v = None
     ):
         """
         Initialize the Gaussian-Binary RBM.
@@ -83,8 +83,6 @@ class GaussianBinaryRBM(XBinaryRBM):
             Number of hidden units.
         device : str, optional
             Target device. Default is ``"cpu"``.
-        sigma_learnable : bool, optional
-            Whether the visible-unit standard deviation should be learned.
         sigma : float, optional
             Initial standard deviation used for all visible units.
 
@@ -95,16 +93,13 @@ class GaussianBinaryRBM(XBinaryRBM):
         """
         super().__init__(n_visible, n_hidden, device=device)
 
-        sigma_value = float(sigma)
-        log_sigma_init = math.log(sigma_value)
-
-        if sigma_learnable:
-            self.is_sigma_learnable = True
-            self.log_sigma_v = nn.Parameter(
-                torch.full((1, n_visible), log_sigma_init, dtype=torch.float32)
-            )
+        if log_sigma_v is not None:
+            self.register_buffer("log_sigma_v", log_sigma_v)
+            sigma_value = torch.exp(self.log_sigma_v.detach()).mean().cpu()
         else:
-            self.is_sigma_learnable = False
+            sigma_value = float(sigma)
+            log_sigma_init = math.log(sigma_value)
+
             self.register_buffer(
                 "log_sigma_v",
                 torch.full((1, n_visible), log_sigma_init, dtype=torch.float32),
@@ -112,8 +107,17 @@ class GaussianBinaryRBM(XBinaryRBM):
 
         # Reinitialize weights using the original Gaussian-RBM scaling.
         self.weights = nn.Parameter(torch.randn(n_visible, n_hidden) * 0.01 * sigma_value)
-
         self.to(device)
+
+    def _init_args(self) -> dict:
+        init_args = super()._init_args()
+        init_args.update(
+            {
+                "sigma_learnable": self.is_sigma_learnable,
+                "sigma": float(torch.exp(self.log_sigma_v.detach()).mean().cpu()),
+            }
+        )
+        return init_args
 
     def sigma_v(self, visible: torch.Tensor = None) -> torch.Tensor:
         """

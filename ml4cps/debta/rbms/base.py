@@ -659,7 +659,7 @@ class XBinaryRBM(nn.Module, ABC):
         raise ValueError(f"Unsupported loss: {loss_name}")
 
     @torch.no_grad()
-    def generate(self, num_examples: int, num_steps: int = 10) -> torch.Tensor:
+    def generate(self, num_examples: int, num_steps: int = 100) -> torch.Tensor:
         """
         Generate visible samples by running a Gibbs chain.
 
@@ -688,7 +688,9 @@ class XBinaryRBM(nn.Module, ABC):
         if num_steps < 1:
             raise ValueError(f"num_steps must be at least 1, got {num_steps}.")
 
-        x = torch.rand(num_examples, self.n_visible, device=self.device)
+        x = torch.bernoulli(
+            torch.full((num_examples, self.n_visible), 0.1, device=self.device)
+        )
 
         for step in range(num_steps):
             h = self.sample_h(self.v2h(x))
@@ -698,11 +700,21 @@ class XBinaryRBM(nn.Module, ABC):
                 x = self.h2v(h)
         return x
 
-    def save(self, filename="bbrbm_mnist.pt"):
+    def _init_args(self) -> dict:
+        return {
+            "n_visible": self.n_visible,
+            "n_hidden": self.n_hidden,
+            "device": "cpu",
+        }
+
+    def save(self, filename=None, filename_sufix: str = "") -> None:
+        if filename is None:
+            filename = f"{self.__class__.__name__.lower()}_{filename_sufix}.pt"
         torch.save(
             {
                 "class_name": self.__class__.__name__,
                 "module_name": self.__class__.__module__,
+                "init_args": self._init_args(),
                 "model_state_dict": self.state_dict(),
                 "n_visible": self.n_visible,
                 "n_hidden": self.n_hidden,
@@ -712,17 +724,22 @@ class XBinaryRBM(nn.Module, ABC):
             },
             filename,
         )
+        print(f"Model saved to {filename}")
 
-def load(filename):
-    checkpoint = torch.load(filename, map_location="cpu")
+    @staticmethod
+    def load(filename):
+        checkpoint = torch.load(filename, map_location="cpu")
 
-    module = importlib.import_module(checkpoint["module_name"])
-    ModelClass = getattr(module, checkpoint["class_name"])
+        module = importlib.import_module(checkpoint["module_name"])
+        ModelClass = getattr(module, checkpoint["class_name"])
 
-    model = ModelClass(**checkpoint["init_args"])
-    model.load_state_dict(checkpoint["model_state_dict"])
+        model = ModelClass(**checkpoint["init_args"])
+        model.load_state_dict(checkpoint["model_state_dict"])
 
-    model.num_epoch = checkpoint.get("num_epoch", 0)
-    model.learning_curve = checkpoint.get("learning_curve", [])
-    model.valid_curve = checkpoint.get("valid_curve", [])
-    model.eval()
+        model.num_epoch = checkpoint.get("num_epoch", 0)
+        model.learning_curve = checkpoint.get("learning_curve", [])
+        model.valid_curve = checkpoint.get("valid_curve", [])
+        model.eval()
+        model.to(model.device)
+        return model
+

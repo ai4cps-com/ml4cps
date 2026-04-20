@@ -11,7 +11,7 @@ The code was developed for several research publications ([bibtex](docs/cite.bib
 
 
 ## Data
-In the folder "data" there are several datasets that can be easily loaded using the example module.
+In the folder "data" there are several datasets that can be easily loaded using the [`ml4cps.examples`](ml4cps/examples/examples.py) module.
 
 
 ## Bugs

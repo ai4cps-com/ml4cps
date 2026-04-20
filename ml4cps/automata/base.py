@@ -260,7 +260,7 @@ class Automaton (CPSComponent):
         else:
             return accepted
 
-    def generate(self, number_of_sequences=1, return_states=False, prob_to_accept=0.5):
+    def generate(self, number_of_sequences=1, return_states=False, max_steps=100, prob_to_accept=0.5):
         if number_of_sequences > 1:
             res = [self.generate(return_states=return_states, prob_to_accept=prob_to_accept)
                    for _ in range(number_of_sequences)]
@@ -284,7 +284,8 @@ class Automaton (CPSComponent):
                 current_event = new_trans[0][3]['event']
                 state_path.append(current_state)
                 event_path.append(current_event)
-
+                if max_steps is not None and len(event_path) >= max_steps:
+                    break
         if return_states:
             return event_path, state_path
         else:

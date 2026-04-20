@@ -4,8 +4,8 @@ import torch
 from matplotlib import pyplot as plt
 from plotly.subplots import make_subplots
 from plotly import graph_objects as go
-import vis
-from denta.rbms.gb import GaussianBinaryRBM
+from ml4cps import vis
+from ml4cps.debta.rbms.gb import GaussianBinaryRBM
 
 
 def plot_discretization(self, time, target, prediction, data=None, data_time=None):

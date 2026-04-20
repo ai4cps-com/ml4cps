@@ -7,8 +7,6 @@
 """
 import copy
 import json
-import logging
-from abc import abstractmethod
 from traceback import print_exc
 import numpy as np
 from collections import OrderedDict
@@ -16,7 +14,7 @@ import pandas as pd
 import warnings
 from scipy.integrate import solve_ivp
 import simpy
-from mlflow.pyfunc import PythonModel, PythonModelContext
+from mlflow.pyfunc import PythonModel
 from ml4cps import tools
 from ml4cps.cps import sim
 
@@ -543,8 +541,8 @@ class CPSComponent(PythonModel, sim.Simulator):
         # print('--------------------')
         # print('{}: Simulation finished'.format(self.id))
 
-    def simulate(self, finish_time, verbose=False, save_choices=False):
-        """Simulates behaviour of the system until the finish_time is reached.
+    def simulate(self, finish_time, verbose=False, reinitialize=True, save_choices=False):
+        """Simulates behavior of the system until the finish_time is reached.
 
         Parameters
         ----------
@@ -553,6 +551,7 @@ class CPSComponent(PythonModel, sim.Simulator):
         save_choices : Should the choices for each component be saved to json files after
         the simulation is finished (default is False).
         """
+        self.reinitialize(0)
 
         env = simpy.Environment()
         finish_time = float(finish_time)

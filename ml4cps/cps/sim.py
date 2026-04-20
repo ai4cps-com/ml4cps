@@ -5,9 +5,6 @@
     - Nemanja Hranisavljevic, hranisan@hsu-hh.de, nemanja@ai4cps.com
 """
 
-from collections import OrderedDict
-import copy
-
 
 class Simulator():
     def simulate(self, finish_time):

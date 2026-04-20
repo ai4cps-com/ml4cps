@@ -16,7 +16,7 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
-from denta.rbms.base import XBinaryRBM
+from ml4cps.debta.rbms.base import XBinaryRBM
 
 
 class BinaryBinaryRBM(XBinaryRBM):
