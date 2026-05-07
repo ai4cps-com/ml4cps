@@ -200,7 +200,7 @@ class KMeansDiscretizer(TimeSeriesDiscretizer):
             if not kmeans:
                 raise ValueError(f"No K-means model trained for column '{col}'.")
             # Assign each value to the closest cluster center
-            discretized_df[col] = kmeans.predict(df[[col]])
+            discretized_df[col] = kmeans.predict(df[[col]], )
 
         if append_discr is not None:
             discretized_df = np.hstack((discretized_df, append_discr))
@@ -246,7 +246,7 @@ class MultivariateKMeansDiscretizer(TimeSeriesDiscretizer):
             raise ValueError("The K-means model has not been trained yet.")
 
         # Predict cluster labels for the entire dataset
-        cluster_labels = self.kmeans_model.predict(df)
+        cluster_labels = self.kmeans_model.predict(df, )
 
         if append_discr is not None:
             if cluster_labels.ndim == 1:
