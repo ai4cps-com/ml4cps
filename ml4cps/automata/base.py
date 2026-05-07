@@ -7,6 +7,7 @@
     - Tom Westermann, tom.westermann@hsu-hh.de, tom@ai4cps.com
 """
 import json
+import inspect
 
 import numpy as np
 from collections import OrderedDict
@@ -24,7 +25,7 @@ class Automaton (CPSComponent):
     Automaton class is the main class for modeling various kinds of hybrid systems.
     """
 
-    def __init__(self, states: list = None, transitions: list = None,
+    def __init__(self, states: list = None, transitions: list = None, configuration=None,
                  unknown_state: str = 'raise', id="", initial_q=(), initial_r=None, final_q=(), super_states=(), decision_states=(),
                  **kwargs):
         """
@@ -46,6 +47,7 @@ class Automaton (CPSComponent):
         self.final_q = OrderedDict.fromkeys(final_q)
         self.previous_node_positions = None
         self.UNKNOWN_STATE = unknown_state
+        self.configuration = configuration
         if super_states is not None:
             if type(super_states) is str:
                 self.__super_states = [super_states]
@@ -61,29 +63,265 @@ class Automaton (CPSComponent):
                 self.decision_states = list(decision_states)
 
         if states is not None:
-            self._G.add_nodes_from(states)
+            for state in states:
+                if isinstance(state, dict):
+                    state_data = dict(state)
+                    state_name = state_data.pop("name", state_data.pop("state", None))
+                    if state_name is None:
+                        raise ValueError('State dict must contain "name" or "state".')
+                    if "configs" in state_data:
+                        raise ValueError('State dict field "configs" is not supported. Use "enabled" instead.')
+                    self.add_state(state_name, **state_data)
+                else:
+                    self.add_state(state)
 
         if transitions is not None:
             for tr in transitions:
                 if type(tr) is dict:
-                    self._G.add_edge(tr.pop('source'), tr.pop('destination'), event=tr.pop('event'), **tr)
+                    tr_data = dict(tr)
+                    source = tr_data.pop("source")
+                    destination = tr_data.pop("destination", tr_data.pop("dest", None))
+                    if destination is None:
+                        raise ValueError('Transition dict must contain "destination" or "dest".')
+                    event = tr_data.pop("event")
+                    guard = tr_data.pop("guard", None)
+                    if "configs" in tr_data:
+                        raise ValueError('Transition dict field "configs" is not supported. Use "enabled" instead.')
+                    self.add_transition(source, destination, event, guard=guard, **tr_data)
                 else:
-                    self._G.add_edge(tr[0], tr[2], event=tr[1])
+                    if len(tr) < 3:
+                        raise ValueError("Transition tuple must contain at least (source, event, destination).")
+                    source, event, destination = tr[0], tr[1], tr[2]
+                    transition_data = tr[3] if len(tr) > 3 and isinstance(tr[3], dict) else {}
+                    self.add_transition(source, destination, event, **transition_data)
 
         if 'discr_state_names' not in kwargs:
             kwargs['discr_state_names'] = ['Mode']
         elif type(kwargs['discr_state_names']) is str:
             kwargs['discr_state_names'] = [kwargs['discr_state_names']]
-        CPSComponent.__init__(self, id, **kwargs)
+        CPSComponent.__init__(self, id, unknown_state=unknown_state, **kwargs)
+
+    def _resolve_enabled_for_add(self, enabled=None):
+        if enabled is not None:
+            return enabled
+        if self.configuration is not None:
+            return {self.configuration: 1}
+        return None
+
+    @staticmethod
+    def _normalize_state_ref(state):
+        if isinstance(state, tuple) and len(state) == 1:
+            return state[0]
+        return state
+
+    def set_configuration(self, configuration):
+        self.configuration = configuration
+
+    def _resolve_config_value(self, value, source=None, destination=None, key=None, data=None, default=None):
+        if callable(value):
+            try:
+                signature = inspect.signature(value)
+                params = list(signature.parameters.values())
+                has_varargs = any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in params)
+                positional_params = [
+                    p for p in params
+                    if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+                ]
+                call_args = (self.configuration, source, destination, key, data)
+                if has_varargs:
+                    return value(*call_args)
+                return value(*call_args[:len(positional_params)])
+            except (TypeError, ValueError):
+                try:
+                    return value(self.configuration)
+                except TypeError:
+                    return value()
+
+        if isinstance(value, dict):
+            if self.configuration in value:
+                return value[self.configuration]
+            for fallback_key in ("*", "default", None):
+                if fallback_key in value:
+                    return value[fallback_key]
+            return default
+
+        if value is None:
+            return default
+        return value
+
+    def _resolve_transition_weight(self, source, destination, key, data, default=1.0):
+        for field in ("frequency", "freq", "p", "probability", "prob"):
+            if field in data:
+                resolved = self._resolve_config_value(
+                    data.get(field),
+                    source=source,
+                    destination=destination,
+                    key=key,
+                    data=data,
+                    default=default,
+                )
+                if resolved is None:
+                    return default
+                try:
+                    return float(resolved)
+                except (TypeError, ValueError):
+                    return default
+        return default
+
+    def _resolve_transition_time(self, source, destination, key, data):
+        time_value = self._resolve_config_value(
+            data.get("time"),
+            source=source,
+            destination=destination,
+            key=key,
+            data=data,
+            default=None,
+        )
+        if time_value is not None:
+            return time_value
+
+        interval_value = self._resolve_config_value(
+            data.get("interval"),
+            source=source,
+            destination=destination,
+            key=key,
+            data=data,
+            default=None,
+        )
+        if interval_value is not None:
+            if isinstance(interval_value, (tuple, list, np.ndarray)) and len(interval_value) >= 2:
+                min_interval = float(interval_value[0])
+                max_interval = float(interval_value[1])
+                if max_interval < min_interval:
+                    min_interval, max_interval = max_interval, min_interval
+                return random.uniform(min_interval, max_interval)
+            return interval_value
+
+        min_interval = None
+        max_interval = None
+        for field in ("min_interval", "minTiming", "min_time"):
+            if field in data:
+                min_interval = self._resolve_config_value(
+                    data.get(field),
+                    source=source,
+                    destination=destination,
+                    key=key,
+                    data=data,
+                    default=None,
+                )
+                break
+        for field in ("max_interval", "maxTiming", "max_time"):
+            if field in data:
+                max_interval = self._resolve_config_value(
+                    data.get(field),
+                    source=source,
+                    destination=destination,
+                    key=key,
+                    data=data,
+                    default=None,
+                )
+                break
+
+        if min_interval is not None and max_interval is not None:
+            min_interval = float(min_interval)
+            max_interval = float(max_interval)
+            if max_interval < min_interval:
+                min_interval, max_interval = max_interval, min_interval
+            return random.uniform(min_interval, max_interval)
+        if min_interval is not None:
+            return float(min_interval)
+        if max_interval is not None:
+            return float(max_interval)
+        return None
+
+    @staticmethod
+    def _normalize_timing_values(timing):
+        if timing is None:
+            return []
+        if isinstance(timing, (list, tuple, np.ndarray)):
+            return list(timing)
+        if isinstance(timing, (str, bytes)):
+            return [timing]
+        try:
+            return list(timing)
+        except TypeError:
+            return [timing]
+
+    def _get_timing_values_for_transition_data(self, data):
+        resolved = self._resolve_config_value(
+            data.get("timing", []),
+            source=None,
+            destination=None,
+            key=None,
+            data=data,
+            default=[],
+        )
+        return self._normalize_timing_values(resolved)
+
+    def _timing_count_for_transition_data(self, data):
+        count_timings = 0
+        if 'timing' in data:
+            timings = data['timing']
+            if isinstance(timings, dict):
+                count_timings = {k: len(v) for k, v in timings.items()}
+            else:
+                count_timings = len(timings)
+        return count_timings
+
+    def _state_allowed(self, state):
+        if not self._G.has_node(state):
+            return False
+        state_data = self._G.nodes[state]
+
+        enabled_data = state_data.get("enabled", None)
+        if enabled_data is None:
+            return True
+        enabled = self._resolve_config_value(
+            enabled_data,
+            source=state,
+            destination=state,
+            key=None,
+            data=state_data,
+            default=0,
+        )
+        return bool(enabled)
+
+    def _transition_allowed(self, source, destination, key, data):
+        if not (self._state_allowed(source) and self._state_allowed(destination)):
+            return False
+
+        enabled_data = data.get("enabled", None)
+        if enabled_data is not None:
+            enabled = self._resolve_config_value(
+                enabled_data,
+                source=source,
+                destination=destination,
+                key=key,
+                data=data,
+                default=0,
+            )
+            if not bool(enabled):
+                return False
+
+        guard = data.get("guard")
+        if guard is None:
+            return True
+        return bool(self._resolve_config_value(
+            guard,
+            source=source,
+            destination=destination,
+            key=key,
+            data=data,
+            default=True,
+        ))
 
     @property
     def Sigma(self):
         Sigma = []
-        for x in self.transitions:
-            if len(x) >= 3 and 'event' in x[2]:
-                new_el = x[2]['event']
-                if new_el not in Sigma:
-                    Sigma.append(new_el)
+        for _, _, key, data in self.get_transitions(active_only=True):
+            new_el = data.get("event", key)
+            if new_el not in Sigma:
+                Sigma.append(new_el)
         return Sigma
 
     @property
@@ -93,6 +331,10 @@ class Automaton (CPSComponent):
     @property
     def discrete_states(self):
         return self._G.nodes
+
+    @property
+    def active_states(self):
+        return [s for s in self.discrete_states if self._state_allowed(s)]
 
     @property
     def transitions(self):
@@ -133,6 +375,8 @@ class Automaton (CPSComponent):
 
         if new_states[0] not in self.discrete_states and new_states[0] not in self.__super_states and new_states[0] != self.UNKNOWN_STATE:
             raise ValueError(f'State "{new_states[0]}" is not a valid state. Valid states are: {self.discrete_states}')
+        if new_states[0] in self.discrete_states and not self._state_allowed(new_states[0]):
+            raise ValueError(f'State "{new_states[0]}" is not allowed for configuration "{self.configuration}".')
 
         self._q = (new_states[0],)
         self._xt = new_states[1]
@@ -279,9 +523,19 @@ class Automaton (CPSComponent):
                     raise Exception(f'State "{current_state}" is not an accepting state, but no possible transitions.')
                 break
             else:
-                new_trans = random.choices(list(trans), weights=[x[3].get('prob', 1) for x in trans])
-                current_state = new_trans[0][1]
-                current_event = new_trans[0][3]['event']
+                weighted_transitions = []
+                for source, destination, key, data in trans:
+                    weight = self._resolve_transition_weight(source, destination, key, data, default=1.0)
+                    weighted_transitions.append((source, destination, key, data, max(weight, 0.0)))
+                if any(x[4] > 0 for x in weighted_transitions):
+                    new_trans = random.choices(
+                        weighted_transitions,
+                        weights=[x[4] for x in weighted_transitions]
+                    )[0]
+                else:
+                    new_trans = random.choice(weighted_transitions)
+                current_state = new_trans[1]
+                current_event = new_trans[3].get('event', new_trans[2])
                 state_path.append(current_state)
                 event_path.append(current_event)
                 if max_steps is not None and len(event_path) >= max_steps:
@@ -325,7 +579,13 @@ class Automaton (CPSComponent):
         :param dest:
         :return:
         """
-        self._G.remove_edge(source, dest)
+        if self.configuration is not None:
+            tr = self.get_transition(source, dest)
+            for v in tr[3].values():
+                if isinstance(v, dict):
+                    v.pop(self.configuration, None)
+        else:
+            self._G.remove_edge(source, dest)
 
     def is_decision(self, state, overall_state):
         return state in self.decision_states
@@ -339,11 +599,24 @@ class Automaton (CPSComponent):
 
     def remove_rare_transitions(self, min_p=0, min_num=0, keep_from_initial=False, keep_states=False, keep=None):
         self.learn_transition_probabilities()
-
         for source, dest, event, data in self.get_transitions():
             if keep_from_initial and source in self.q0:
                 continue
-            if (len(data['timing']) <= min_num or data['probability'] < min_p) and \
+            frequency = self._timing_count_for_transition_data(data)
+            if isinstance(frequency, dict):
+                for k, f in frequency.items():
+                    if f < min_num:
+                        self.set_configuration(k)
+                        self.remove_transition(source, dest)
+                self.set_configuration(None)
+                frequency = self._timing_count_for_transition_data(data)
+                if isinstance(frequency, dict):
+                    freq_condition = len(frequency) == 0
+                else:
+                    freq_condition = frequency <= min_num
+            else:
+                freq_condition = frequency <= min_num
+            if (freq_condition or data['probability'] < min_p) and \
                     ((keep is None) or (keep is not None and source not in keep and dest not in keep)):
                 self.remove_transition(source, dest)
 
@@ -366,9 +639,21 @@ class Automaton (CPSComponent):
 
     def learn_transition_probabilities(self):
         for s in self.discrete_states:
-            total_num = sum([len(data['timing']) for s, d, e, data in self.out_transitions(s)])
-            for s, d, e, data in self.out_transitions(s):
-                data['probability'] = len(data['timing']) / total_num
+            outgoing = list(self.out_transitions(s))
+            total_num = 0
+            for _, _, _, data in outgoing:
+                timings = self._timing_count_for_transition_data(data)
+                if isinstance(timings, dict):
+                    total_num += sum(timings.values())
+                else:
+                    total_num += timings
+            for _, _, _, data in outgoing:
+                timings = self._timing_count_for_transition_data(data)
+                if isinstance(timings, dict):
+                    num = sum(timings.values())
+                else:
+                    num = timings
+                data['probability'] = (num / total_num) if total_num else 0.0
 
     def state_is_deterministic(self, q):
         events = set()
@@ -400,22 +685,39 @@ class Automaton (CPSComponent):
         return True
 
     def add_single_transition(self, s, d, e, timing=None):
+        timing_values = None if timing is None else self._normalize_timing_values(timing)
         edge_data = self._G.get_edge_data(s, d, e)
         if edge_data is None:
             if timing is None:
-                self._G.add_edge(s, d, key=e)
+                self._G.add_edge(s, d, key=e, event=e)
             else:
-                try:
-                    timing = list(timing)
-                    self._G.add_edge(s, d, key=e, event=e, timing=timing)
-                except:
-                    self._G.add_edge(s, d, key=e, event=e, timing=[timing])
-        elif timing is not None:
-            try:
-                timing = list(timing)
-                edge_data['timing'] += timing
-            except:
-                edge_data['timing'].append(timing)
+                if self.configuration is None:
+                    self._G.add_edge(s, d, key=e, event=e, timing=timing_values)
+                else:
+                    self._G.add_edge(s, d, key=e, event=e, timing={self.configuration: timing_values})
+            return
+
+        if timing is None:
+            return
+
+        existing_timing = edge_data.get("timing", None)
+        if self.configuration is None:
+            if isinstance(existing_timing, dict):
+                existing_timing.setdefault(None, []).extend(timing_values)
+            elif existing_timing is None:
+                edge_data["timing"] = timing_values
+            else:
+                edge_data["timing"] = self._normalize_timing_values(existing_timing) + timing_values
+        else:
+            if isinstance(existing_timing, dict):
+                existing_timing.setdefault(self.configuration, []).extend(timing_values)
+            elif existing_timing is None:
+                edge_data["timing"] = {self.configuration: timing_values}
+            else:
+                edge_data["timing"] = {
+                    None: self._normalize_timing_values(existing_timing),
+                    self.configuration: timing_values,
+                }
 
     def add_state_data(self, s: str, d: object):
         """
@@ -426,33 +728,83 @@ class Automaton (CPSComponent):
         """
         self.Q[s] = d
 
-    def add_state(self, new_state, **kwargs):
+    def add_state(self, new_state, enabled=None, **kwargs):
         """
     Add state to the automaton.
         :param new_state: State to be added.
         """
+        resolved_enabled = self._resolve_enabled_for_add(enabled=enabled)
+        if resolved_enabled is not None:
+            kwargs["enabled"] = resolved_enabled
         self._G.add_node(new_state, **kwargs)
 
-    def add_states_from(self, new_state, **kwargs):
+    def add_states_from(self, new_state, enabled=None, **kwargs):
         """
     Add multiple states to the automaton.
         :param new_state: States to be added.
         """
-        self._G.add_nodes_from(new_state, **kwargs)
+        if isinstance(new_state, str):
+            new_state = [new_state]
+        for state in new_state:
+            if isinstance(state, dict):
+                state_data = dict(state)
+                state_name = state_data.pop("name", state_data.pop("state", None))
+                if state_name is None:
+                    raise ValueError('State dict must contain "name" or "state".')
+                if "configs" in state_data:
+                    raise ValueError('State dict field "configs" is not supported. Use "enabled" instead.')
+                state_enabled = state_data.pop("enabled", enabled)
+                merged_state_data = dict(kwargs)
+                merged_state_data.update(state_data)
+                self.add_state(state_name, enabled=state_enabled, **merged_state_data)
+            elif isinstance(state, tuple) and len(state) == 2 and isinstance(state[1], dict):
+                state_data = dict(state[1])
+                if "configs" in state_data:
+                    raise ValueError('State dict field "configs" is not supported. Use "enabled" instead.')
+                state_enabled = state_data.pop("enabled", enabled)
+                merged_state_data = dict(kwargs)
+                merged_state_data.update(state_data)
+                self.add_state(state[0], enabled=state_enabled, **merged_state_data)
+            else:
+                self.add_state(state, enabled=enabled, **kwargs)
 
     def add_transitions_from(self, list_of_tuples, **other):
         """
     Add multiple transition.
         :param list_of_tuples: List of transitions in the form (source_state, destination_state, event, ...<unused>...).
         """
-        self._G.add_edges_from(list_of_tuples, **other)
+        for tr in list_of_tuples:
+            if isinstance(tr, dict):
+                tr_data = dict(other)
+                tr_data.update(tr)
+                source = tr_data.pop("source")
+                destination = tr_data.pop("destination", tr_data.pop("dest", None))
+                if destination is None:
+                    raise ValueError('Transition dict must contain "destination" or "dest".')
+                event = tr_data.pop("event")
+                if "configs" in tr_data:
+                    raise ValueError('Transition dict field "configs" is not supported. Use "enabled" instead.')
+                enabled = tr_data.pop("enabled", None)
+                guard = tr_data.pop("guard", None)
+                self.add_transition(source, destination, event, enabled=enabled, guard=guard, **tr_data)
+            else:
+                if len(tr) < 3:
+                    raise ValueError("Transition tuple must contain at least (source, destination, event).")
+                source, destination, event = tr[0], tr[1], tr[2]
+                tr_data = dict(other)
+                if len(tr) > 3 and isinstance(tr[3], dict):
+                    tr_data.update(tr[3])
+                self.add_transition(source, destination, event, **tr_data)
 
-    def add_transition(self, s, d, e, **other):
+    def add_transition(self, s, d, e, enabled=None, guard=None, **other):
         """
     Add multiple transition.
         :param list_of_tuples: List of transitions in the form (source_state, destination_state, event, ...<unused>...).
         """
-        self._G.add_edge(s, d, e, **other, event=e)
+        resolved_enabled = self._resolve_enabled_for_add(enabled=enabled)
+        if resolved_enabled is not None:
+            other["enabled"] = resolved_enabled
+        self._G.add_edge(s, d, e, **other, event=e, guard=guard)
 
     def add_initial_state(self, states):
         """
@@ -500,10 +852,10 @@ class Automaton (CPSComponent):
     #         return ""
 
     def num_occur(self, tr):
-        return len(tr[-1]['timing'])
+        return self._timing_count_for_transition_data(tr[-1])
 
     def num_timings(self):
-        return sum(len(tr[-1]['timing']) for tr in self.get_transitions())
+        return sum(self._timing_count_for_transition_data(tr[-1]) for tr in self.get_transitions())
 
     def get_num_in(self, q):
         """
@@ -525,8 +877,9 @@ class Automaton (CPSComponent):
         else:
             raise Exception(f'State {q} not in the automaton.')
 
-    def is_state(self, q):
-        return self._G.has_node(q)
+    def is_state(self, q, active_only=False):
+        q = self._normalize_state_ref(q)
+        return self._G.has_node(q) and (not active_only or self._state_allowed(q))
 
     def remove_state(self, s):
         self._G.remove_node(s)
@@ -539,10 +892,11 @@ class Automaton (CPSComponent):
         :param s:
         :return:
         """
-        if event is None:
-            return self._G.in_edges(s, data=True, keys=True)
-        else:
-            return [e for e in self._G.in_edges(s, data=True, keys=True) if e[3]['event'] == event]
+        s = self._normalize_state_ref(s)
+        transitions = list(self._G.in_edges(s, data=True, keys=True))
+        if event is not None:
+            transitions = [e for e in transitions if e[3].get("event", e[2]) == event]
+        return [e for e in transitions if self._transition_allowed(*e)]
 
     def out_transitions(self, s, event=None):
         """
@@ -551,23 +905,33 @@ class Automaton (CPSComponent):
         :param s:
         :return:
         """
-        if event is None:
-            return self._G.out_edges(s, data=True, keys=True)
-        else:
-            return [e for e in self._G.out_edges(s, data=True, keys=True) if e[3]['event'] == event]
+        s = self._normalize_state_ref(s)
+        transitions = list(self._G.out_edges(s, data=True, keys=True))
+        if event is not None:
+            transitions = [e for e in transitions if e[3].get("event", e[2]) == event]
+        return [e for e in transitions if self._transition_allowed(*e)]
 
     def discrete_event_dynamics(self, q, xt, xk, p) -> tuple:
         e = p["event"]
         new_q = self.UNKNOWN_STATE
-        possible_destinations = set(d for s, d, ev in self._G.out_edges(q, data='event') if ev == e)
-        if len(possible_destinations) == 1:
-            new_q = possible_destinations.pop()
+        transitions = self.out_transitions(q, event=e)
+        if len(transitions) == 1:
+            new_q = transitions[0][1]
         else:
-            stoch_dest = list((d, data.get('p', 0)) for s, d, data in self._G.out_edges(q, data=True) if data['event'] == e)
+            stoch_dest = []
+            for source, d, key, data in transitions:
+                p_weight = self._resolve_transition_weight(source, d, key, data, default=0.0)
+                stoch_dest.append((d, max(0.0, p_weight)))
             if stoch_dest:
-                new_q = random.choices([x[0] for x in stoch_dest], weights=[x[1] for x in stoch_dest])[0]
-            else: # try to revocer
-                dests = set(d for s, d, ev in self._G.edges(data='event') if ev == e)
+                if any(x[1] > 0 for x in stoch_dest):
+                    new_q = random.choices([x[0] for x in stoch_dest], weights=[x[1] for x in stoch_dest])[0]
+                else:
+                    new_q = random.choice(stoch_dest)[0]
+            else:  # try to recover
+                dests = set(
+                    d for s, d, k, data in self.get_transitions(active_only=True)
+                    if data.get("event", k) == e
+                )
                 if len(dests) == 1:
                     new_q = dests.pop()
         return (new_q,), None, None
@@ -576,17 +940,26 @@ class Automaton (CPSComponent):
         pass
 
     def timed_event(self, q, xc, xd):
-        possible_destinations = list(dict(ev, dest=d) for s, d, ev in self._G.out_edges(q, data=True) if s == q)
+        q = self._normalize_state_ref(q)
+        possible_destinations = list(self.out_transitions(q))
         if possible_destinations:
             if len(possible_destinations) == 1:
                 dest = possible_destinations[0]
             else:
-                dest = np.random.choice(possible_destinations, p=[p['prob']/sum(x['prob'] for x in possible_destinations) if 'prob' in p else 1/len(possible_destinations) for p in possible_destinations])
-            if 'time' in dest:
-                time = dest['time']
-                if callable(time):
-                    time = time()
-                return time, dest.get('destination', dest['dest'])
+                probs = [
+                    max(0.0, self._resolve_transition_weight(s, d, key, data, default=1.0))
+                    for s, d, key, data in possible_destinations
+                ]
+                total = sum(probs)
+                if total > 0:
+                    probs = [p / total for p in probs]
+                    dest = np.random.choice(possible_destinations, p=probs)
+                else:
+                    dest = np.random.choice(possible_destinations)
+            source, destination, key, data = dest
+            time = self._resolve_transition_time(source, destination, key, data)
+            if time is not None:
+                return time, destination
         return None, None
 
     def get_transition(self, s, d=None, e=None, if_more_than_one='raise'):
@@ -599,13 +972,15 @@ class Automaton (CPSComponent):
         :param e: Event.
         :return:
         """
-        transitions = self._G.out_edges(s, keys=True, data=True)
+        transitions = list(self.out_transitions(s))
         if e is None and d is not None:
             transitions = [trans for trans in transitions if trans[1] == d]
         elif d is None and e is not None:
-            transitions = [trans for trans in transitions if trans[2] == e]
+            transitions = [trans for trans in transitions if trans[3].get("event", trans[2]) == e]
+        elif d is not None and e is not None:
+            transitions = [trans for trans in transitions if trans[1] == d and trans[3].get("event", trans[2]) == e]
         else:
-            transitions = [trans for trans in transitions if trans[1] == d and trans[2] == e]
+            transitions = transitions
 
         if len(transitions) > 1:
             if if_more_than_one == 'raise':
@@ -659,6 +1034,7 @@ class Automaton (CPSComponent):
         return f"""Automaton:
     Number of states: {self.num_modes}
     Number of transitions: {self.num_transitions}
+    Configuration: {self.configuration}
     Initial state(s): {list(self.q0.keys())}
     Final state(s): {list(self.final_q.keys())}"""
 
@@ -685,8 +1061,11 @@ class Automaton (CPSComponent):
         """
         pass
 
-    def get_transitions(self):
-        return list(self._G.edges(data=True, keys=True))
+    def get_transitions(self, active_only=False):
+        transitions = list(self._G.edges(data=True, keys=True))
+        if active_only:
+            transitions = [tr for tr in transitions if self._transition_allowed(*tr)]
+        return transitions
 
     def print_state(self, v):
         """Prints outgoing transitions of a state v.
@@ -707,12 +1086,17 @@ class Automaton (CPSComponent):
         return s
 
     def sample_initial(self):
+        candidates = [q for q in self.q0.keys() if self._state_allowed(q)]
+        if len(candidates) == 0:
+            candidates = self.active_states
+        if len(candidates) == 0:
+            candidates = list(self.discrete_states)
         if len(self.q0) == 0:
-            current_q = np.random.choice(list(self.discrete_states.keys()), 1)[-1]
+            current_q = np.random.choice(candidates, 1)[-1]
             warnings.warn(
                 'Initial state not defined, sampling initial state uniformly from the set of all states.')
         else:
-            current_q = np.random.choice(list(self.q0.keys()), 1)[-1]
+            current_q = np.random.choice(candidates, 1)[-1]
         return current_q
 
     # def simulate(self, finish_time=100, current_q=None):

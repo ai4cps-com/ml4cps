@@ -60,7 +60,7 @@ class XBinaryRBM(nn.Module, ABC):
     :class:`XBinaryRBM`.
     """
 
-    def __init__(self, n_visible: int, n_hidden: int, device: str = "cpu") -> None:
+    def __init__(self, n_visible: int, n_hidden: int, device: str = "cpu", name: str = "") -> None:
         """
         Initialize the RBM base module.
 
@@ -101,6 +101,7 @@ class XBinaryRBM(nn.Module, ABC):
         # Persistent fantasy particles used by Persistent Contrastive Divergence.
         # This is intentionally stored as runtime state rather than as a buffer.
         self.persistent_visible: torch.Tensor | None = None
+        self.name = name
 
         self.to(device)
 

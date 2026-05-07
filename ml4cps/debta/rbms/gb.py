@@ -70,7 +70,8 @@ class GaussianBinaryRBM(XBinaryRBM):
         n_hidden: int,
         device: str = "cpu",
         sigma: float = 1.0,
-        log_sigma_v = None
+        log_sigma_v = None,
+        name=''
     ):
         """
         Initialize the Gaussian-Binary RBM.
@@ -91,7 +92,7 @@ class GaussianBinaryRBM(XBinaryRBM):
         The visible log-standard-deviation is stored in ``log_sigma_v`` rather
         than ``sigma_v`` directly to ensure positivity through exponentiation.
         """
-        super().__init__(n_visible, n_hidden, device=device)
+        super().__init__(n_visible, n_hidden, name=name, device=device)
 
         if log_sigma_v is not None:
             self.register_buffer("log_sigma_v", log_sigma_v)

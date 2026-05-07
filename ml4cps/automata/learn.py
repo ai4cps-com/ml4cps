@@ -177,7 +177,7 @@ def simple_learn_from_event_logs(data, initial=True, count_repetition=True, verb
     return a
 
 
-def simple_learn_from_signal_vectors(data, drop_no_changes=True, verbose=False):
+def simple_learn_from_signal_vectors(data, config=None, drop_no_changes=True, verbose=False):
     """
     Learns a timed automaton from a list of signal vector dataframes.
     This function processes sequences of signal vectors (as pandas DataFrames), detects changes in the specified
@@ -209,16 +209,63 @@ def simple_learn_from_signal_vectors(data, drop_no_changes=True, verbose=False):
     dummy_initial = 'initial'
     a.add_initial_state(dummy_initial)
 
-    for d in data:
+    num_sequences = len(data)
+
+    def _select_sequence_config(config_value, sequence_index):
+        if config_value is None or np.isscalar(config_value):
+            return config_value
+        if isinstance(config_value, (list, tuple)) and len(config_value) == num_sequences:
+            return config_value[sequence_index]
+        if isinstance(config_value, np.ndarray) and config_value.ndim >= 1 and config_value.shape[0] == num_sequences:
+            return config_value[sequence_index]
+        return config_value
+
+    def _subset_sequence_config(sequence_config, full_index, kept_index, keep_mask=None):
+        if sequence_config is None or np.isscalar(sequence_config):
+            return sequence_config
+
+        try:
+            config_len = len(sequence_config)
+        except TypeError:
+            return sequence_config
+
+        # Primary path: config is per-time-step and aligned by row position.
+        # This is robust even when index labels are duplicated.
+        if keep_mask is not None and config_len == len(full_index):
+            positions = np.flatnonzero(np.asarray(keep_mask))
+            if hasattr(sequence_config, "iloc"):
+                return sequence_config.iloc[positions]
+            if isinstance(sequence_config, np.ndarray):
+                return sequence_config[positions]
+            return [sequence_config[i] for i in positions]
+
+        # Fallback path: label-based alignment.
+        if hasattr(sequence_config, "reindex"):
+            try:
+                return sequence_config.reindex(kept_index)
+            except ValueError:
+                try:
+                    return sequence_config.loc[kept_index]
+                except Exception:
+                    return sequence_config
+        return sequence_config
+
+    for sequence_index, d in enumerate(data):
+        full_index = d.index
+        sequence_config = _select_sequence_config(config, sequence_index)
         sig_names = d.columns
         if drop_no_changes:
-            d = tools.remove_timestamps_without_change(d)
+            keep_mask = (d[sig_names] != d[sig_names].shift(1)).any(axis=1)
+            d = d.loc[keep_mask].copy(deep=True)
+            sequence_config = _subset_sequence_config(sequence_config, full_index, d.index, keep_mask=keep_mask)
         sequence += 1
         if verbose:
             print('Sequence #{}'.format(sequence))
-            if len(d) < 2:
+        if len(d) < 2:
+            if verbose:
                 print('Skipping because num events: 0')
-                continue
+            continue
+        if verbose:
             print('Duration: {}'.format(d.index[-1] - d.index[0]))
 
         previous_state = d[sig_names].iloc[:-1]
@@ -231,13 +278,30 @@ def simple_learn_from_signal_vectors(data, drop_no_changes=True, verbose=False):
             event = d[sig_names].diff().apply(lambda x: ' '.join(x.astype(str)).replace(".0", ""), 1).iloc[1:]
         deltat = d.index.diff()[1:]
 
+        if sequence_config is None:
+            transition_config = [None] * len(previous_state)
+        elif np.isscalar(sequence_config):
+            transition_config = [sequence_config] * len(previous_state)
+        else:
+            if hasattr(sequence_config, "iloc"):
+                transition_config = sequence_config.iloc[1:]
+            else:
+                transition_config = sequence_config[1:]
+
         obs_ind = 0
-        for source, dest, ev, dt in zip(previous_state.itertuples(index=False, name=None),
-                                        dest_state.itertuples(index=False, name=None), event, deltat):
+        for source, dest, ev, dt, cfg in zip(
+            previous_state.itertuples(index=False, name=None),
+            dest_state.itertuples(index=False, name=None),
+            event,
+            deltat,
+            transition_config,
+        ):
             obs_ind += 1
             source = pprint.pformat(source, compact=True, width=10000).replace(".0", "")
             dest = pprint.pformat(dest, compact=True, width=10000).replace(".0", "")
 
+            if cfg is not None:
+                a.set_configuration(cfg)
             if obs_ind == 1:
                 a.add_single_transition(dummy_initial, source, "Start", 0)
 

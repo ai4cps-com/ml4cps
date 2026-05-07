@@ -223,21 +223,6 @@ def plot_input_space(self, data=None, samples=None, show_gaussian_components=Fal
     return fig
 
 def plot_learning_curve(model):
-    """
-    Plots the learning curve for a given model.
-
-    This function generates a time-series plot using the training and validation
-    curves of the model. It visualizes the model's performance over epochs in terms
-    of the training and validation metrics.
-
-    Parameters:
-    model : Any
-        The model object that contains the `learning_curve` and `valid_curve` attributes.
-
-    Returns:
-    Figure
-        A visualization object representing the plotted learning curve.
-    """
     return vis.plot_timeseries([pd.DataFrame(model.learning_curve), pd.DataFrame(model.valid_curve)],
                                title='Learning curve', names=['Train', 'Valid'], xaxis_title='Epoch')
 
@@ -251,9 +236,6 @@ def plot_error_histogram(self, d, v=None):
         fig.add_vline(x=self.threshold, line_width=2, line_dash="dash", line_color="red")
     return fig
 
-def plot_learning_curve(self):
-    return vis.plot_timeseries([pd.DataFrame(self.learning_curve), pd.DataFrame(self.valid_curve)],
-                               title='Learning curve', names=['Train', 'Valid'], xaxis_title='Epoch')
 
 def plot_frequency_of_latent_combinations(self, d):
     d = d.to(self.device)
