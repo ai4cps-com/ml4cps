@@ -81,17 +81,17 @@ def train_rbm(
     free energy, regardless of the training loss.
     """
     if log_mlflow:
-        mlflow.log_param("min_epoch", min_epoch)
-        mlflow.log_param("max_epoch", max_epoch)
-        mlflow.log_param("batch_size", batch_size)
-        mlflow.log_param("shuffle", shuffle)
-        mlflow.log_param("weight_decay", weight_decay)
-        mlflow.log_param("early_stopping_patience", early_stopping_patience)
-        mlflow.log_param("early_stopping", early_stopping)
-        mlflow.log_param("lr", lr)
-        mlflow.log_param("num_gibbs", num_gibbs)
-        mlflow.log_param("optimizer", optimizer)
-        mlflow.log_param("loss_name", loss_name)
+        mlflow.log_param(rbm.name + "min_epoch", min_epoch)
+        mlflow.log_param(rbm.name + "max_epoch", max_epoch)
+        mlflow.log_param(rbm.name + "batch_size", batch_size)
+        mlflow.log_param(rbm.name + "shuffle", shuffle)
+        mlflow.log_param(rbm.name + "weight_decay", weight_decay)
+        mlflow.log_param(rbm.name + "early_stopping_patience", early_stopping_patience)
+        mlflow.log_param(rbm.name + "early_stopping", early_stopping)
+        mlflow.log_param(rbm.name + "lr", lr)
+        mlflow.log_param(rbm.name + "num_gibbs", num_gibbs)
+        mlflow.log_param(rbm.name + "optimizer", optimizer)
+        mlflow.log_param(rbm.name + "loss_name", loss_name)
 
     if isinstance(train_data, DataLoader):
         data_loader = train_data
@@ -132,7 +132,7 @@ def train_rbm(
         rbm.reset_persistent_chain()
 
     t_start = tm.time()
-
+    epoch = 0
     for epoch in range(1, max_epoch + 1):
         if verbose:
             print(f"Epoch {epoch} started...")
@@ -268,16 +268,16 @@ def train_3way_rbm(
     Early stopping is based on the validation visible reconstruction MSE.
     """
     if log_mlflow:
-        mlflow.log_param("min_epoch", min_epoch)
-        mlflow.log_param("max_epoch", max_epoch)
-        mlflow.log_param("batch_size", batch_size)
-        mlflow.log_param("shuffle", shuffle)
-        mlflow.log_param("weight_decay", weight_decay)
-        mlflow.log_param("early_stopping_patience", early_stopping_patience)
-        mlflow.log_param("early_stopping", early_stopping)
-        mlflow.log_param("lr", lr)
-        mlflow.log_param("num_gibbs", num_gibbs)
-        mlflow.log_param("optimizer", optimizer)
+        mlflow.log_param(rbm.name + "min_epoch", min_epoch)
+        mlflow.log_param(rbm.name + "max_epoch", max_epoch)
+        mlflow.log_param(rbm.name + "batch_size", batch_size)
+        mlflow.log_param(rbm.name + "shuffle", shuffle)
+        mlflow.log_param(rbm.name + "weight_decay", weight_decay)
+        mlflow.log_param(rbm.name + "early_stopping_patience", early_stopping_patience)
+        mlflow.log_param(rbm.name + "early_stopping", early_stopping)
+        mlflow.log_param(rbm.name + "lr", lr)
+        mlflow.log_param(rbm.name + "num_gibbs", num_gibbs)
+        mlflow.log_param(rbm.name + "optimizer", optimizer)
 
     if isinstance(train_data, (list, tuple)):
         train_data = torch.vstack(train_data)
