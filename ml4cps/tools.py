@@ -2,6 +2,8 @@
     Various methods to transform data.
 """
 import warnings
+from datetime import datetime
+from pathlib import PurePosixPath
 
 import pandas as pd
 import numpy as np
@@ -22,6 +24,74 @@ def vec2str(discrete_data):
     return discrete_data
 
 
+def log_plotly_figure_to_mlflow(
+        fig,
+        artifact_file=None,
+        artifact_dir="figures",
+        file_stem="plotly_figure",
+        include_run_id=True,
+        start_run_if_needed=False,
+):
+    """
+    Log a Plotly figure artifact to the currently active MLflow run.
+
+    Parameters
+    ----------
+    fig :
+        Plotly figure object.
+    artifact_file : str | None
+        Full MLflow artifact path (for example ``"figures/plot.html"``).
+        If None, a filename is generated automatically.
+    artifact_dir : str
+        Artifact directory used when ``artifact_file`` is not provided.
+    file_stem : str
+        Base filename (without extension) used when ``artifact_file`` is not provided.
+    include_run_id : bool
+        Whether to append the active run id to the generated filename.
+    start_run_if_needed : bool
+        If True, starts a new MLflow run when there is no active run.
+        If False, raises an error when no run is active.
+
+    Returns
+    -------
+    str
+        Artifact path used for logging.
+    """
+    try:
+        import mlflow
+    except ImportError as exc:
+        raise ImportError("mlflow is required to log Plotly figures.") from exc
+
+    if fig is None:
+        raise ValueError("fig must not be None.")
+
+    active_run = mlflow.active_run()
+    if active_run is None:
+        if start_run_if_needed:
+            active_run = mlflow.start_run()
+        else:
+            raise RuntimeError(
+                "No active MLflow run. Start a run first with mlflow.start_run()."
+            )
+
+    run_id = active_run.info.run_id
+    if artifact_file is None:
+        stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        suffix = f"_{run_id}" if include_run_id else ""
+        artifact_file = f"{artifact_dir}/{file_stem}_{stamp}{suffix}.html"
+    else:
+        path = PurePosixPath(artifact_file)
+        if path.suffix == "":
+            artifact_file = f"{artifact_dir}/{artifact_file}.html"
+        elif path.suffix.lower() not in {".html", ".htm", ".png", ".jpg", ".jpeg", ".svg"}:
+            raise ValueError(
+                f"Unsupported file extension '{path.suffix}' for Plotly MLflow artifact."
+            )
+
+    mlflow.log_figure(fig, artifact_file)
+    return artifact_file
+
+
 def standardize(x, mean=None, std=None):
     if type(x) is list:
         if mean is None or std is None:
@@ -39,17 +109,23 @@ def standardize(x, mean=None, std=None):
         else:
             return (x - mean) / std
 
-def window(x, window_size, window_step):
+def window(x, window_size, window_step=1):
     if type(x) is list:
         return [window(xx, window_size, window_step) for xx in x]
     else:
-        if type(x) is pd.DataFrame:
-            x = torch.tensor(x.values, dtype=torch.float32)
-        x_unfolded = x.unfold(dimension=0, size=window_size, step=window_step)
-        dims = list(range(x_unfolded.dim()))  # current dims [0, 1, 2, ..., unfolded_dim]
-        # Move last dimension (-1) to position 1
-        new_order = [dims[0], dims[-1]] + dims[1:-1]
-        return x_unfolded.permute(*new_order)
+        if isinstance(x, (pd.DataFrame, pd.Series)):
+            x = x.to_numpy()
+        if isinstance(x, np.ndarray):
+            x = np.lib.stride_tricks.sliding_window_view(x, window_shape=window_size, axis=0)
+            x = x[::window_step]
+            x = np.moveaxis(x, -1, 1)
+            return x
+        else:
+            x_unfolded = x.unfold(dimension=0, size=window_size, step=window_step)
+            dims = list(range(x_unfolded.dim()))  # current dims [0, 1, 2, ..., unfolded_dim]
+            # Move last dimension (-1) to position 1
+            new_order = [dims[0], dims[-1]] + dims[1:-1]
+            return x_unfolded.permute(*new_order)
 
 
 
