@@ -169,7 +169,7 @@ def plot_timeseries(
     - `customdata` is filtered per trace when `plot_only_changes=True`.
     """
     datasets = _normalize_datasets(data, timestamp=timestamp)
-    if not datasets:
+    if not datasets or all(d.empty for d in datasets):
         return go.Figure()
 
     columns = _resolve_columns(datasets, use_columns)
@@ -723,10 +723,10 @@ def plot_stateflow(stateflow, color_mapping=None, state_col='State', task_col='T
 
 def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False, event_label=True,
                        show_transition_freq=False, show_transition_timing=False, font_size=6, edge_font_size=6,
-                       edge_text_max_width=None, init_label=False, limit_interval_precision=None,
+                       edge_text_max_width=None, init_label=False, limit_interval_precision=2,
                        show_transition_data=False, transition_data_keys=True, node_size=20, output="cyto",
                        dash_port=8050, min_zoom=0.5, split_edges_diff_event=False,
-                       max_zoom=1, min_edge_thickness=0.1, max_edge_thickness=4, freq_as_edge_thickness=False,
+                       max_zoom=2, min_edge_thickness=0.1, max_edge_thickness=4, freq_as_edge_thickness=False,
                        color="black", title_text=None, layout_name='breadthfirst', layout_spacingFactor=1,
                        hide_nodes=None):
     """    
@@ -833,66 +833,232 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
         if n in cps.q0:
             nodes.append(dict(data={'id': f"q0{n}", 'label': f"q0{n}"}, classes='q0'))
             if init_label:
-                edges.append(dict(data=dict(label='init', source=f"q0{n}", target=n)))
+                edges.append(dict(data=dict(label='init', source=f"q0{n}", target=n, line_color=color, config='')))
             elif event_label:
-                edges.append(dict(data=dict(label=cps.initial_r, source=f"q0{n}", target=n)))
+                edges.append(dict(data=dict(label=cps.initial_r, source=f"q0{n}", target=n, line_color=color, config='')))
             else:
-                edges.append(dict(data=dict(source=f"q0{n}", target=n)))
+                edges.append(dict(data=dict(source=f"q0{n}", target=n, line_color=color, config='')))
 
-    for e in cps.get_transitions():
-        if hide_nodes and (e[0] in hide_nodes or e[1] in hide_nodes):
+    fallback_keys = ("*", "default", None)
+
+    def _resolve_for_config(value, cfg, source=None, target=None, event_key=None, edge_data=None, default=None):
+        if callable(value):
+            try:
+                return value(cfg, source, target, event_key, edge_data)
+            except TypeError:
+                try:
+                    return value(cfg)
+                except TypeError:
+                    return value()
+
+        if isinstance(value, dict):
+            if cfg in value:
+                return value[cfg]
+            for key in fallback_keys:
+                if key in value:
+                    return value[key]
+            return default
+
+        if value is None:
+            return default
+        return value
+
+    def _as_seconds(raw_value):
+        if raw_value is None:
+            return None
+        if isinstance(raw_value, (int, float, np.number)):
+            return float(raw_value)
+        try:
+            return pd.Timedelta(raw_value).total_seconds()
+        except Exception:
+            try:
+                return float(raw_value)
+            except Exception:
+                return None
+
+    def _resolve_timing_values(data, cfg, source, target, event_key):
+        raw_timing = _resolve_for_config(data.get("timing"), cfg, source, target, event_key, data, default=[])
+        if raw_timing is None:
+            raw_timing = []
+        if not isinstance(raw_timing, (list, tuple, np.ndarray)):
+            raw_timing = [raw_timing]
+        timings = [_as_seconds(x) for x in raw_timing]
+        return [x for x in timings if x is not None]
+
+    def _resolve_interval_bounds(data, cfg, source, target, event_key, timings):
+        if timings:
+            return min(timings), max(timings)
+
+        interval = _resolve_for_config(data.get("interval"), cfg, source, target, event_key, data, default=None)
+        if isinstance(interval, (list, tuple, np.ndarray)) and len(interval) >= 2:
+            interval_min = _as_seconds(interval[0])
+            interval_max = _as_seconds(interval[1])
+            if interval_min is not None and interval_max is not None:
+                return (interval_min, interval_max) if interval_min <= interval_max else (interval_max, interval_min)
+
+        min_interval = None
+        max_interval = None
+        for key in ("min_interval", "minTiming", "min_time"):
+            if key in data:
+                min_interval = _as_seconds(_resolve_for_config(data.get(key), cfg, source, target, event_key, data, default=None))
+                break
+        for key in ("max_interval", "maxTiming", "max_time"):
+            if key in data:
+                max_interval = _as_seconds(_resolve_for_config(data.get(key), cfg, source, target, event_key, data, default=None))
+                break
+
+        if min_interval is not None and max_interval is not None:
+            return (min_interval, max_interval) if min_interval <= max_interval else (max_interval, min_interval)
+        if min_interval is not None:
+            return min_interval, min_interval
+        if max_interval is not None:
+            return max_interval, max_interval
+
+        time_value = _as_seconds(_resolve_for_config(data.get("time"), cfg, source, target, event_key, data, default=None))
+        if time_value is not None:
+            return time_value, time_value
+        return None
+
+    def _is_state_enabled(state, cfg):
+        state_data = cps._G.nodes[state]
+        enabled_data = state_data.get("enabled", None)
+        if enabled_data is None:
+            return True
+        return bool(_resolve_for_config(enabled_data, cfg, source=state, target=state, default=0))
+
+    def _is_transition_enabled(source, target, event_key, data, cfg):
+        if not (_is_state_enabled(source, cfg) and _is_state_enabled(target, cfg)):
+            return False
+        enabled_data = data.get("enabled", None)
+        if enabled_data is not None and not bool(_resolve_for_config(enabled_data, cfg, source, target, event_key, data, default=0)):
+            return False
+        guard = data.get("guard", None)
+        if guard is not None and not bool(_resolve_for_config(guard, cfg, source, target, event_key, data, default=True)):
+            return False
+        return True
+
+    inferred_configs = set()
+    if hasattr(cps, "configurations") and getattr(cps, "configurations") is not None:
+        for cfg in getattr(cps, "configurations"):
+            if cfg not in fallback_keys:
+                inferred_configs.add(cfg)
+
+    for _, node_data in cps._G.nodes(data=True):
+        for value in node_data.values():
+            if isinstance(value, dict):
+                for cfg in value.keys():
+                    if cfg not in fallback_keys:
+                        inferred_configs.add(cfg)
+
+    all_transitions = list(cps.get_transitions())
+    for _, _, _, data in all_transitions:
+        for value in data.values():
+            if isinstance(value, dict):
+                for cfg in value.keys():
+                    if cfg not in fallback_keys:
+                        inferred_configs.add(cfg)
+
+    inferred_configs = sorted(inferred_configs, key=lambda x: str(x))
+    active_configuration = getattr(cps, "configuration", None)
+    plot_all_configurations = active_configuration is None and len(inferred_configs) > 0
+    config_color_map = {cfg: DEFAULT_PLOTLY_COLORS[i % len(DEFAULT_PLOTLY_COLORS)] for i, cfg in enumerate(inferred_configs)}
+
+    for e in all_transitions:
+        source, target, event_key, transition_data = e
+        if hide_nodes and (source in hide_nodes or target in hide_nodes):
             continue
 
-        if 'timing' in e[3]:
-            freq = len(e[3]['timing'])
-            import numbers
+        configs_to_plot = inferred_configs if plot_all_configurations else [active_configuration]
 
+        for cfg in configs_to_plot:
+            if not _is_transition_enabled(source, target, event_key, transition_data, cfg):
+                continue
 
-            timings = [float(x) if isinstance(x, numbers.Number) else pd.Timedelta(x).total_seconds() for x in e[3]['timing']]
-        else:
-            freq = 0
-            timings = []
+            timings = _resolve_timing_values(transition_data, cfg, source, target, event_key)
+            interval_bounds = _resolve_interval_bounds(transition_data, cfg, source, target, event_key, timings)
 
-        edge = dict(data={'source': e[0],
-                          'target': e[1],
-                          'label': f'{e[3]["event"]}' if event_label else '',
-                          'timing': timings,
-                          'freq': freq})
+            if timings:
+                freq = float(len(timings))
+            else:
+                freq = 0
+            if freq == 0:
+                continue
 
-        existing_edge = next((x for x in edges if x['data']['source'] == edge['data']['source'] and
-                              x['data']['target'] == edge['data']['target']), None)
-        if existing_edge is None or split_edges_diff_event:
-            if show_transition_freq:
-                edge['data']['label'] += f' #{freq}'
-            if show_transition_timing:
-                if limit_interval_precision is None:
-                    edge['data']['label'] += f' [{min(timings)},{max(timings)}]'
-                else:
-                    edge['data']['label'] += f' [{min(timings):.{limit_interval_precision}f},{max(timings):.{limit_interval_precision}f}]'
+            edge_event = transition_data.get("event", event_key)
+            edge_color = config_color_map.get(cfg, color) if plot_all_configurations else color
+            config_tag = f"[{cfg}] " if plot_all_configurations else ""
+            base_label = f"{config_tag}{edge_event}" if event_label else config_tag.strip()
 
-            if show_transition_data:
-                edge_data = e[3]
-                ev = edge_data.pop('event', None)
-                if isinstance(show_transition_data, list):
-                    edge_data = {k: v for k, v in edge_data.items() if k in show_transition_data}
-                # edge['data']['label'] += "\n"
-                if transition_data_keys:
-                    edge['data']['label'] += " ".join(f"{key}: {value}" for key, value in edge_data.items())
-                else:
-                    edge['data']['label'] += " ".join(f"{value}" for key, value in edge_data.items())
-            edges.append(edge)
-        else: # existing_edge
-            if show_transition_freq:
-                existing_edge['data']['label'] += f' #{freq}]'
-            if show_transition_timing:
-                existing_edge['data']['label'] += f' [{min(timings):.{limit_interval_precision}f},{max(timings):.{limit_interval_precision}f}]'
+            edge = dict(data={
+                'source': source,
+                'target': target,
+                'label': base_label,
+                'timing': timings,
+                'freq': freq,
+                'line_color': edge_color,
+                'config': str(cfg) if cfg is not None else ''
+            })
 
-            if show_transition_data or event_label:
-                edge_data = e[3]
-                ev = edge_data.pop('event', None)
-                if isinstance(show_transition_data, list):
-                    edge_data = {k: v for k, v in edge_data.items() if k in show_transition_data}
-                existing_edge['data']['label'] += f" ,{ev} " + "; ".join(f"{key} = {value}" for key, value in edge_data.items())
+            existing_edge = None
+            if not plot_all_configurations and not split_edges_diff_event:
+                existing_edge = next((x for x in edges if x['data']['source'] == edge['data']['source'] and
+                                      x['data']['target'] == edge['data']['target']), None)
+
+            if existing_edge is None or split_edges_diff_event or plot_all_configurations:
+                if show_transition_freq:
+                    edge['data']['label'] += f' #{freq:g}'
+
+                if show_transition_timing and interval_bounds is not None:
+                    tmin, tmax = interval_bounds
+                    if limit_interval_precision is None:
+                        edge['data']['label'] += f' [{tmin},{tmax}]'
+                    else:
+                        edge['data']['label'] += (
+                            f' [{tmin:.{limit_interval_precision}f},{tmax:.{limit_interval_precision}f}]'
+                        )
+
+                if show_transition_data:
+                    edge_data = {}
+                    for key, value in transition_data.items():
+                        if key in {"event", "guard"}:
+                            continue
+                        if isinstance(show_transition_data, list) and key not in show_transition_data:
+                            continue
+                        edge_data[key] = _resolve_for_config(
+                            value, cfg, source=source, target=target, event_key=event_key, edge_data=transition_data, default=value
+                        )
+
+                    if edge_data:
+                        if transition_data_keys:
+                            edge['data']['label'] += " " + " ".join(f"{key}: {value}" for key, value in edge_data.items())
+                        else:
+                            edge['data']['label'] += " " + " ".join(f"{value}" for _, value in edge_data.items())
+                edges.append(edge)
+            else:  # existing_edge
+                if show_transition_freq:
+                    existing_edge['data']['label'] += f' #{freq:g}'
+                if show_transition_timing and interval_bounds is not None:
+                    tmin, tmax = interval_bounds
+                    if limit_interval_precision is None:
+                        existing_edge['data']['label'] += f' [{tmin},{tmax}]'
+                    else:
+                        existing_edge['data']['label'] += (
+                            f' [{tmin:.{limit_interval_precision}f},{tmax:.{limit_interval_precision}f}]'
+                        )
+                if show_transition_data or event_label:
+                    edge_data = {}
+                    for key, value in transition_data.items():
+                        if key in {"event", "guard"}:
+                            continue
+                        if isinstance(show_transition_data, list) and key not in show_transition_data:
+                            continue
+                        edge_data[key] = _resolve_for_config(
+                            value, cfg, source=source, target=target, event_key=event_key, edge_data=transition_data, default=value
+                        )
+                    if edge_data:
+                        existing_edge['data']['label'] += (
+                            f" ,{edge_event} " + "; ".join(f"{key} = {value}" for key, value in edge_data.items())
+                        )
 
     # Normalize thickness to the range [1, 10]
     thickness_values = [edge["data"].get("freq", 1) for edge in edges]
@@ -934,19 +1100,19 @@ def plot_cps_component(cps, id=None, node_labels=False, center_node_labels=False
         'curve-style': 'bezier',
         'background-color': 'white',  # Inner fill
         'target-arrow-shape': 'triangle',
-        'target-arrow-color': color,
+        'target-arrow-color': 'data(line_color)',
         'target-arrow-size': 3,
         'text-background-color': '#ffffff',
         'text-background-opacity': 1,
         'text-background-shape': 'roundrectangle',
-        'color': "#B8234F",
+        'color': 'data(line_color)',
         'width': 1,
         'font-style': 'italic',
         'font-family': "serif",
         'text-wrap': 'wrap',
         'font-size': edge_font_size,
         'text-max-width': edge_text_max_width,
-        'line-color': color
+        'line-color': 'data(line_color)'
     }
 
     if freq_as_edge_thickness:
@@ -2198,3 +2364,4 @@ def plot_images(images):
         plot_bgcolor="white",
     )
     return fig
+
