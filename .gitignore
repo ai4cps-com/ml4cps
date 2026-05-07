@@ -10,3 +10,4 @@ mlruns/
 ml4cps.egg-info/
 build/
 data/
+papers/Energy-Based Learning of Timed Automata for Data-Driven Reconfiguration of CPSs/conveyor_system_reconfig_data.json
