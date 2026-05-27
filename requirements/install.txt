@@ -3,6 +3,7 @@ dash-bootstrap-components
 dash-extensions
 waitress
 networkx
+simpy
 pandas
 flask
 flask-login
