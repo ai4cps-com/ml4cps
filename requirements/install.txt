@@ -1,6 +1,8 @@
 dash==3.4.0
 dash-bootstrap-components
 dash-extensions
+dash_cytoscape
+pydotplus
 waitress
 networkx
 simpy
