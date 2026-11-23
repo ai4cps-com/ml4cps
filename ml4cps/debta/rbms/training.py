@@ -16,6 +16,8 @@ from torch.utils.data import DataLoader, Dataset
 
 from ml4cps.debta.debta_tools import mse, sparsity, bce
 from ml4cps.debta.rbms.base import XBinaryRBM
+from .three_way import ConditionalTransitionRBM, _binary_codebook
+from scipy.optimize import minimize
 
 
 class _LearningLogTee:
@@ -86,9 +88,12 @@ def train_rbm(
         sparsity_target=0.25,
         sparsity_weight=0.0,
         temporal_persistence_weight=0.0,
+        show_plots=False,
 ):
     """
     Train the RBM using one of the supported losses.
+
+    Figures are opened only when show_plots=True; training can run unattended.
 
     The optimized objective adds ``sparsity_weight * KL`` and
     ``temporal_persistence_weight * BCE`` to the selected base loss. Sparsity uses
@@ -377,8 +382,9 @@ def train_rbm(
     if log_mlflow:
         mlflow.log_figure(figure, f"figures/{rbm.name}_hidden_units.html")
         mlflow.log_figure(histogram, f"figures/{rbm.name}_hidden_unit_histograms.html")
-    figure.show("browser")
-    histogram.show("browser")
+    if show_plots:
+        figure.show("browser")
+        histogram.show("browser")
     
     
 @_save_learning_log
@@ -465,12 +471,12 @@ def train_3way_rbm(
 
     if isinstance(train_data, (list, tuple)):
         train_data = torch.vstack(train_data)
-    train_data = train_data.float().to(rbm.device)
+    train_data = rbm.prepare_input(train_data).float().to(rbm.device)
 
     if valid_data is not None:
         if isinstance(valid_data, (list, tuple)):
             valid_data = torch.vstack(valid_data)
-        valid_data = valid_data.float().to(rbm.device)
+        valid_data = rbm.prepare_input(valid_data).float().to(rbm.device)
 
     data_loader = DataLoader(train_data, batch_size=batch_size, shuffle=shuffle)
 
@@ -755,3 +761,71 @@ def _get_progress_rbm(rbm, d: torch.Tensor, return_hidden_stats=False):
                          count=hidden.shape[0])
             return progress, stats
     return progress
+
+
+def conditional_objective_gradient(parameters, model, config_rows, source_rows, weights, l2):
+    """Exact codebook likelihood and autograd gradient for SciPy L-BFGS."""
+    ordered = list(model.transition_parameters.values())
+    vector = torch.as_tensor(parameters, dtype=model.weights.dtype, device=model.device).clone()
+    if vector.numel() != sum(parameter.numel() for parameter in ordered):
+        raise ValueError("Parameter vector has the wrong length")
+    torch.nn.utils.vector_to_parameters(vector, ordered)
+    model.zero_grad(set_to_none=True)
+    log_probability = model.conditional_log_probabilities(config_rows, source_rows)
+    frequencies = torch.as_tensor(weights, dtype=model.weights.dtype, device=model.device)
+    loss = -(frequencies * log_probability).sum() + .5 * l2 * sum(p.square().sum() for p in ordered)
+    loss.backward()
+    gradient = torch.cat([p.grad.reshape(-1) for p in ordered]).detach().cpu().numpy().copy()
+    return float(loss.detach()), gradient
+
+
+def fit_transition_rbm(configurations, counts, *, state_codes, n_hidden=24, n_factors=12,
+                       seed=42, l2=.0001, max_iter=6000,
+                       configuration_types=None, configuration_sigma=1.):
+    """Fit P(binary destination | binary source, configuration) on counts."""
+    configs, counts = np.asarray(configurations, dtype=float), np.asarray(counts, dtype=float)
+    codes = _binary_codebook(state_codes)
+    if configs.ndim != 2 or not len(configs) or not np.isfinite(configs).all():
+        raise ValueError("Expected finite configuration rows")
+    if counts.shape != (len(configs), len(codes), len(codes)):
+        raise ValueError("Counts must align with configuration rows and the binary state codebook")
+    if not np.isfinite(counts).all() or (counts < 0).any() or (counts.sum(axis=(1, 2)) <= 0).any():
+        raise ValueError("Every configuration needs finite nonnegative counts with positive total")
+    if not np.isfinite(l2) or l2 < 0 or type(max_iter) is not int or max_iter < 1:
+        raise ValueError("Invalid fit settings")
+    weighted = counts / counts.sum(axis=(1, 2), keepdims=True) / len(configs)
+    c_index, source_index = np.nonzero(counts.sum(axis=2))
+    contexts, sources = configs[c_index], codes[source_index]
+    model = ConditionalTransitionRBM(configs.shape[1], codes, n_hidden, n_factors, seed,
+                                     configuration_types=configuration_types, configuration_sigma=configuration_sigma)
+    model.prepare_auxiliary(configs)
+    losses = []
+
+    def progress(intermediate_result):
+        losses.append(float(intermediate_result.fun))
+        if len(losses) % 1000 == 0:
+            print(f"Conditional RBM iteration {len(losses)}: training objective {losses[-1]:.8f}", flush=True)
+
+    result = minimize(conditional_objective_gradient, model.parameter_vector(),
+                      args=(model, contexts, sources, weighted[c_index, source_index], l2),
+                      jac=True, method="L-BFGS-B", callback=progress,
+                      options={"maxiter": max_iter, "ftol": 1e-9, "gtol": 1e-5})
+    torch.nn.utils.vector_to_parameters(torch.as_tensor(result.x, dtype=model.weights.dtype, device=model.device).clone(),
+                                        list(model.transition_parameters.values()))
+    model.eval()
+    model.fit_info = {"model_type": model.model_type, "conditioning": ["binary_source", "configuration"],
+                      "objective": "penalized exact conditional destination NLL",
+                      "success": bool(result.success), "message": str(result.message),
+                      "iterations": int(result.nit), "value": float(result.fun),
+                      "source_configuration_rows": len(sources), "transition_count": int(counts.sum()),
+                      "states": len(codes), "state_bits": model.n_state_bits,
+                      "configuration_bits": model.configuration_types.count("binary"),
+                      "configuration_variables": configs.shape[1],
+                      "configuration_types": list(model.configuration_types),
+                      "configuration_sigma": model.configuration_sigma.detach().cpu().tolist(),
+                      "hidden": n_hidden, "factors": n_factors,
+                      "seed": seed, "l2": l2, "max_iter": max_iter,
+                      "parameter_count": len(result.x), "ftol": 1e-9, "gtol": 1e-5,
+                      "gradient_inf_norm": float(np.max(np.abs(result.jac))),
+                      "training_objective_last_100_change": float(losses[-min(len(losses), 100)] - losses[-1]) if losses else 0.}
+    return model

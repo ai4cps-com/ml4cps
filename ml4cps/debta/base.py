@@ -233,7 +233,8 @@ class DebtaEbm(nn.Module):
         self._decoder_biases = nn.ParameterList().to(device)
 
         if timed_model in ['rbm']:
-            self.timed_model = three_way.ThreeWayBinaryBinaryRBM(num_h, num_h, round(num_h * 1.1), n_factors).to(device)
+            self.timed_model = three_way.ThreeWayBinaryBinaryRBM(n_visible=num_h, n_hidden=round(num_h * 1.1),
+                                                                  n_auxiliary=num_h, device=device)
         else:
             self.timed_model = None
 
@@ -379,36 +380,13 @@ class DebtaEbm(nn.Module):
         return l.in_features
 
     def num_hidden_layers(self):
+        """Number of sensor encoder layers.
+
+        The optional timed_model scores transitions between encoder states. It
+        is trained on explicit paired states, separately from sensor encoding,
+        and does not change the encoder's binary state width or layer count.
         """
-        Return the total number of hidden layers in the model.
-
-        This count is derived from the encoder stack stored in
-        ``self._discretization_layers``, where each hidden layer consists of a
-        linear transformation followed by a sigmoid activation. If an additional
-        temporal top model is present in ``self.timed_model``, it is counted as one
-        extra hidden layer.
-
-        Returns:
-            int:
-                Total number of hidden layers, including the optional temporal top
-                layer if present.
-
-        Notes:
-            - ``self._discretization_layers`` stores modules in alternating order:
-              linear, sigmoid, linear, sigmoid, ...
-            - Therefore, the number of hidden layers in the encoder stack is
-              ``len(self._discretization_layers) // 2``.
-            - If ``self.timed_model is not None``, the returned value includes that
-              additional model as one more layer.
-
-        Example:
-            >>> model.num_hidden_layers()
-            3
-        """
-        L = len(self._discretization_layers) // 2
-        if self.timed_model is not None:
-            L += 1
-        return L
+        return len(self._discretization_layers) // 2
 
     @property
     def sigma_x(self):
@@ -484,8 +462,8 @@ class DebtaEbm(nn.Module):
               alternating sequence of linear and sigmoid modules.
             - When ``pre_sigmoid=True``, the returned tensor corresponds to the
               affine transformation output before the final sigmoid activation.
-            - If ``h_level`` exceeds ``self.num_hidden_layers()``, the additional
-              transformation is delegated to ``self.timed_model``.
+            - Levels refer only to sensor encoding; the optional timed model
+              scores state transitions separately.
 
         Example:
             >>> h = model.encode(x)
@@ -494,6 +472,8 @@ class DebtaEbm(nn.Module):
         """
         if h_level is None:
             h_level = self.num_hidden_layers()
+        if not 0 <= x_level <= h_level <= self.num_hidden_layers():
+            raise ValueError("Requested levels are outside the sensor encoder stack")
         if isinstance(x, list):
             return [self.encode(xx, rounding=rounding, x_level=x_level, h_level=h_level,
                                 pre_sigmoid=pre_sigmoid, scale_input=scale_input) for xx in x]
@@ -505,8 +485,6 @@ class DebtaEbm(nn.Module):
         if pre_sigmoid:
             discr_layer_end -= 1
         h = self._discretization_layers[x_level * 2:discr_layer_end](x)
-        if h_level > self.num_hidden_layers():
-            h = self.timed_model.forward(h)
         if rounding:
             h = torch.round(h)
         return h
@@ -522,8 +500,7 @@ class DebtaEbm(nn.Module):
         the visible layer (``x_level == 0``), the reconstruction is scaled by
         ``sigma_x`` and shifted by the corresponding decoder bias.
 
-        For models with an additional temporal top layer, inputs above the standard
-        hidden stack are first decoded through ``self.timed_model``.
+        The temporal transition RBM is separate from the sensor decoder.
 
         Args:
             h (torch.Tensor):
@@ -554,8 +531,6 @@ class DebtaEbm(nn.Module):
             - For the visible layer (``l == 1``), no sigmoid is applied; instead,
               the reconstruction is scaled by ``self.sigma_x`` and shifted by the
               corresponding decoder bias.
-            - If ``h_level`` exceeds ``self.num_hidden_layers()``, decoding begins
-              by applying ``self.timed_model.decode``.
 
         Example:
             >>> h = model.encode(x)
@@ -564,8 +539,8 @@ class DebtaEbm(nn.Module):
         """
         if h_level is None:
             h_level = self.num_hidden_layers()
-        if h_level > self.num_hidden_layers():
-            h = self.timed_model.decode(h)
+        if not 0 <= x_level <= h_level <= self.num_hidden_layers():
+            raise ValueError("Requested levels are outside the sensor encoder stack")
 
         y = h
         for l in range(h_level, x_level, -1):
@@ -1166,7 +1141,7 @@ class DebtaEbm(nn.Module):
         """
         train_data = train_data.sequences.float().to(self.device)
         valid_data = valid_data.sequences.float().to(self.device)
-        for layer in range(1, self.num_hidden_layers() + 1):  # +1 for three-way RBM on top
+        for layer in range(1, self.num_hidden_layers() + 1):
             print('Training layer {}'.format(layer))
 
 
@@ -1484,6 +1459,9 @@ class DEBTA(automata.Automaton):
         log_mlflow (bool): Whether to log metrics and figures to MLflow.
     """
 
+    # Subclasses declare additional attributes persisted by save/load.
+    checkpoint_attributes = ()
+
     def __init__(self, log_mlflow=False, *args, **kwargs):
         """
         Initialize the DEBTA automaton.
@@ -1498,6 +1476,67 @@ class DEBTA(automata.Automaton):
         self._mean = None
         self._std = None
         self.log_mlflow = log_mlflow
+
+    def encode_observations(self, observations, mean, std):
+        """Return integer latent codes and reconstructions in sensor units.
+
+        observations is a (samples, features) array of single observations;
+        mean and std are the per-feature training normalization vectors.
+        This method creates no temporal windows. The existing recon operation
+        rounds the latent representation and reconstructs those same binary
+        codes. The first latent bit is the least significant integer bit.
+
+        Return (codes, reconstructed), with shapes (samples,) and
+        (samples, features). Training statistics and model weights are unchanged.
+        """
+        values = torch.as_tensor(np.array(observations, copy=True), dtype=torch.float32)[:, None, :]
+        normalized = ((values - torch.as_tensor(mean, dtype=torch.float32).reshape(1, 1, -1))
+                      / torch.as_tensor(std, dtype=torch.float32).reshape(1, 1, -1))
+        with torch.no_grad():
+            reconstructed, bits = self.recon(normalized)
+        bits = bits.cpu().numpy()[:, -1, :].astype(int)
+        reconstructed = reconstructed.cpu().numpy()[:, -1, :]
+        codes = bits @ (2 ** np.arange(bits.shape[1]))
+        return codes, reconstructed * np.asarray(std) + np.asarray(mean)
+
+    @staticmethod
+    def assign_mode_indices(codes, observations, state_codes, prototypes, mean, std, *,
+                            sensor_distance_weight=1e-6):
+        """Assign known-mode indices to integer latent codes, flagging unseen inputs.
+
+        Exact matches retain their vocabulary index. Unseen codes select the
+        known mode minimizing Hamming distance plus sensor_distance_weight
+        times the squared observation-to-prototype distance scaled by std.
+        This is a weighted sum, rather than strict Hamming tie-breaking.
+
+        Return (indices, unknown), with one entry per input code. Indices
+        refer to the supplied state_codes ordering; the flags retain which
+        input codes were unseen before fallback.
+        sensor_distance_weight must be finite and nonnegative; zero disables
+        the sensor-distance term. Observations and decoded prototypes must use
+        the same physical units. mean is retained for call compatibility and
+        is unused because centering cancels in their difference.
+        """
+        if (isinstance(sensor_distance_weight, (bool, np.bool_))
+                or not isinstance(sensor_distance_weight, (int, float, np.integer, np.floating))
+                or not np.isfinite(sensor_distance_weight) or sensor_distance_weight < 0):
+            raise ValueError("sensor_distance_weight must be a finite nonnegative number")
+        codes = np.asarray(codes, dtype=int)
+        state_codes = np.asarray(state_codes, dtype=int)
+        lookup = {code: index for index, code in enumerate(state_codes)}
+        result = np.array([lookup.get(code, -1) for code in codes], dtype=int)
+        unknown = result < 0
+        if unknown.any():
+            xor = codes[unknown, None] ^ state_codes[None, :]
+            hamming = np.array([[int(v).bit_count() for v in row] for row in xor])
+            if sensor_distance_weight == 0:
+                scores = hamming
+            else:
+                distances = (((np.asarray(observations)[unknown, None, :]
+                              - np.asarray(prototypes)[None, :, :]) / np.asarray(std)) ** 2).sum(axis=2)
+                scores = hamming + sensor_distance_weight * distances
+            result[unknown] = np.argmin(scores, axis=1)
+        return result, unknown
 
     def predict(self, context, model_input: np.ndarray, params=None):
         """
@@ -1788,6 +1827,11 @@ class DEBTA(automata.Automaton):
         self.set_configuration(None)
 
     def save(self, filename=None, filename_suffix=''):
+        """Save the automaton, encoder, and declared subclass attributes.
+
+        Subclasses list extra attribute names in checkpoint_attributes;
+        no persistence overrides are needed.
+        """
         if filename is None:
             suffix = f"_{filename_suffix}" if filename_suffix else ""
             filename = f"{self.__class__.__name__.lower()}{suffix}.pt"
@@ -1819,21 +1863,35 @@ class DEBTA(automata.Automaton):
             "cont_state_names": self.cont_state_names,
             "cont_output_names": self.cont_output_names,
             "unknown_state": self.UNKNOWN_STATE,
+            "extra_state": {name: getattr(self, name)
+                            for name in self.checkpoint_attributes},
         }
 
         torch.save(checkpoint, filename)
         print(f"Model saved to {filename}")
 
 
-    @staticmethod
-    def load(filename):
+    @classmethod
+    def load(cls, filename):
+        """Restore a saved DEBTA class or promote an ancestor to cls.
+
+        Calling DEBTA.load preserves the saved subclass. Calling a
+        subclass loader on an older ancestor checkpoint returns that
+        subclass, with absent extra attributes using class defaults.
+        """
         try:
             checkpoint = torch.load(filename, map_location="cpu", weights_only=False)
         except TypeError:
             checkpoint = torch.load(filename, map_location="cpu")
 
         module = importlib.import_module(checkpoint["module_name"])
-        ModelClass = getattr(module, checkpoint["class_name"])
+        saved_class = getattr(module, checkpoint["class_name"])
+        if issubclass(saved_class, cls):
+            ModelClass = saved_class
+        elif issubclass(cls, saved_class):
+            ModelClass = cls
+        else:
+            raise TypeError(f"Checkpoint class {saved_class.__name__} is incompatible with {cls.__name__}")
 
         model = ModelClass.__new__(ModelClass)
         automata.Automaton.__init__(
@@ -1868,6 +1926,11 @@ class DEBTA(automata.Automaton):
         model._q = state.get("q", model._q)
         model._xt = state.get("xt", model._xt)
         model._xk = state.get("xk", model._xk)
+
+        # Accept checkpoints written by the former reconfiguration override.
+        extra_state = checkpoint.get("extra_state", checkpoint.get("reconfiguration", {}))
+        for name in model.checkpoint_attributes:
+            setattr(model, name, extra_state.get(name, getattr(model, name, None)))
 
         if hasattr(model.ebm, "device"):
             model.ebm.device = "cpu"

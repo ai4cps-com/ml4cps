@@ -8,6 +8,9 @@
 """
 import json
 import inspect
+from dataclasses import dataclass
+from functools import lru_cache
+from itertools import product
 
 import numpy as np
 from collections import OrderedDict
@@ -16,7 +19,7 @@ from scipy.integrate import solve_ivp
 import networkx as nx
 import warnings
 from ml4cps.cps import CPSComponent
-from ml4cps.tools import signal_vector_to_state
+from ml4cps.tools import signal_vector_to_state, get_allowed_configurations
 import random
 
 
@@ -1242,6 +1245,97 @@ class Automaton (CPSComponent):
         self._discrete_state_data.append(dict(Time=t, Event=e, Mode=self.discrete_state, **self._p))
         self._discrete_output_data.append([t, *self._d, self._p.get('event', None)])
 
+
+
+@dataclass(frozen=True)
+class FunctionalAutomatonSpace:
+    states: tuple[str, ...]
+    n_config: int = 3
+    step_seconds: float = 8.0
+
+    def __post_init__(self):
+        object.__setattr__(self, "states", tuple(self.states))
+        if not self.states or len(set(self.states)) != len(self.states):
+            raise ValueError("State labels must be nonempty and unique")
+        get_allowed_configurations(self.n_config)
+        if not np.isfinite(self.step_seconds) or self.step_seconds <= 0:
+            raise ValueError("step_seconds must be finite and positive")
+
+    @property
+    def n_states(self):
+        return len(self.states)
+
+    @property
+    def n_visible(self):
+        return self.n_config + self.n_states * (self.n_states + 1) + self.n_states
+
+    def validate_root(self, initial):
+        if isinstance(initial, (bool, np.bool_)) or not isinstance(initial, (int, np.integer)) or not 0 <= initial < self.n_states:
+            raise ValueError("Initial state is outside the state vocabulary")
+
+    def validate_config(self, config):
+        if len(config) != self.n_config or any(bit not in (0, 1) for bit in config):
+            raise ValueError("Configuration has the wrong dimension or nonbinary values")
+        return tuple(int(bit) for bit in config)
+
+    def is_valid(self, successors, initial):
+        """Require a present root, closed edges, and exactly its reachable states."""
+        self.validate_root(initial)
+        n = self.n_states
+        if len(successors) != n or any(not isinstance(q, (int, np.integer)) or not 0 <= q <= n for q in successors):
+            return False
+        active = {q for q in range(n) if successors[q] != n}
+        if initial not in active or any(successors[q] not in active for q in active):
+            return False
+        reached, current = set(), initial
+        while current not in reached:
+            reached.add(current)
+            current = successors[current]
+        return reached == active
+
+    @lru_cache(maxsize=None)
+    def automata(self, initial):
+        self.validate_root(initial)
+        return tuple(graph for graph in product(range(self.n_states + 1), repeat=self.n_states)
+                     if self.is_valid(graph, initial))
+
+    def encode(self, config, successors, initial):
+        config = self.validate_config(config)
+        if not self.is_valid(successors, initial):
+            raise ValueError("Automaton must be closed and rooted at the clamped state")
+        graph = np.eye(self.n_states + 1)[list(successors)].reshape(-1)
+        return np.concatenate([config, graph, np.eye(self.n_states)[initial]])
+
+    def domain(self, configs=None):
+        configs = get_allowed_configurations(self.n_config) if configs is None else configs
+        return np.array([self.encode(config, graph, root)
+                         for config in configs for root in range(self.n_states)
+                         for graph in self.automata(root)])
+
+    def decode(self, vector):
+        vector = np.asarray(vector, dtype=float)
+        if vector.shape != (self.n_visible,) or not np.isin(vector, [0, 1]).all():
+            raise ValueError("Expected one binary visible vector")
+        rows = vector[self.n_config:-self.n_states].reshape(self.n_states, self.n_states + 1)
+        root = vector[-self.n_states:]
+        if not (rows.sum(axis=1) == 1).all() or root.sum() != 1:
+            raise ValueError("Each automaton row and root must be one-hot")
+        config = self.validate_config(vector[:self.n_config])
+        graph = tuple(int(q) for q in rows.argmax(axis=1))
+        initial = int(root.argmax())
+        if not self.is_valid(graph, initial):
+            raise ValueError("Decoded graph is not valid at its initial state")
+        return config, graph, initial
+
+    def path(self, successors, initial, horizon):
+        if not self.is_valid(successors, initial):
+            raise ValueError("Invalid rooted automaton")
+        if not isinstance(horizon, int) or isinstance(horizon, bool) or horizon < 0:
+            raise ValueError("horizon must be a nonnegative integer")
+        path = [int(initial)]
+        for _ in range(horizon):
+            path.append(int(successors[path[-1]]))
+        return tuple(path)
 
 
 if __name__ == '__main__':

@@ -102,6 +102,7 @@ class XBinaryRBM(nn.Module, ABC):
         self.valid_hidden_activation_curve: list[dict[str, list[float]]] = []
         self.gradient_curve: list[dict[str, float]] = []
         self.num_epoch: int = 0
+        self.fit_info = None
 
         # Persistent fantasy particles used by Persistent Contrastive Divergence.
         # This is intentionally stored as runtime state rather than as a buffer.
@@ -164,7 +165,7 @@ class XBinaryRBM(nn.Module, ABC):
         """
         return x
 
-    def v2h(self, visible: torch.Tensor, pre_sigmoid: bool = False) -> torch.Tensor:
+    def v2h(self, visible: torch.Tensor, pre_sigmoid: bool = False, *, weights=None, hidden_bias=None) -> torch.Tensor:
         """
         Compute hidden logits or activation probabilities from visible units.
 
@@ -183,8 +184,11 @@ class XBinaryRBM(nn.Module, ABC):
             Hidden logits or probabilities with shape
             ``(batch_size, n_hidden)``.
         """
-        visible = visible.reshape(visible.size(0), -1)
-        logits = visible @ self.weights + self.hidden_bias
+        if weights is None:
+            visible = visible.reshape(visible.size(0), -1)
+            weights = self.weights
+        hidden_bias = self.hidden_bias if hidden_bias is None else hidden_bias
+        logits = torch.matmul(visible, weights) + hidden_bias
         return logits if pre_sigmoid else torch.sigmoid(logits)
 
     def sample_h(self, hidden_probs: torch.Tensor) -> torch.Tensor:
@@ -794,6 +798,7 @@ class XBinaryRBM(nn.Module, ABC):
                 "n_visible": self.n_visible,
                 "n_hidden": self.n_hidden,
                 "num_epoch": self.num_epoch,
+                "fit_info": self.fit_info,
                 "learning_curve": self.learning_curve,
                 "valid_curve": self.valid_curve,
             },
@@ -809,9 +814,11 @@ class XBinaryRBM(nn.Module, ABC):
         ModelClass = getattr(module, checkpoint["class_name"])
 
         model = ModelClass(**checkpoint["init_args"])
-        model.load_state_dict(checkpoint["model_state_dict"])
+        # The saved tensors determine dtype, including mixed-precision buffers.
+        model.load_state_dict(checkpoint["model_state_dict"], assign=True)
 
         model.num_epoch = checkpoint.get("num_epoch", 0)
+        model.fit_info = checkpoint.get("fit_info")
         model.learning_curve = checkpoint.get("learning_curve", [])
         model.valid_curve = checkpoint.get("valid_curve", [])
         model.eval()

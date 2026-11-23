@@ -311,20 +311,23 @@ class GaussianBinaryRBM(XBinaryRBM):
             - ``hidden_states`` is an array containing the binary hidden
               configuration corresponding to each mixture component, with shape
               ``(2**n_hidden, n_hidden)``
-            - ``Z`` is the unnormalized partition-like sum used before weight
-              normalization
+            - ``Z`` is the sum of unnormalized hidden-component weights, excluding
+              the shared Gaussian integral factor
 
         Notes
         -----
         This method explicitly enumerates all hidden configurations, so it is
         only feasible for very small values of ``n_hidden``.
 
-        The method preserves the logic of the original implementation by using
+        Completing the square gives each hidden component the log weight
 
         .. math::
-            \\exp(-F(\\mu(h)))
+            b_h^T h + (b_v / \\sigma)^T W h + \\frac12 \\|W h\\|^2.
 
-        as the unnormalized component weight associated with hidden state ``h``.
+        Evaluating the marginal free energy at a component mean would instead
+        sum over every hidden state again and gives incorrect mixture weights.
+        Weights are normalized in log space; ``Z`` may overflow to infinity for
+        very large parameters while the normalized weights remain finite.
         """
         num_components = 2 ** self.n_hidden
 
@@ -336,16 +339,22 @@ class GaussianBinaryRBM(XBinaryRBM):
         hidden_states = np.zeros((num_components, self.n_hidden), dtype=np.float64)
 
         for i, bits in enumerate(itertools.product([0.0, 1.0], repeat=self.n_hidden)):
-            h = torch.tensor(bits, dtype=torch.float32, device=self.device).unsqueeze(0)
+            h = torch.tensor(bits, dtype=self.weights.dtype, device=self.device).unsqueeze(0)
             hidden_states[i, :] = np.array(bits, dtype=np.float64)
 
             mean = self.h2v(h).squeeze(0)
             means[i, :] = mean.detach().cpu().numpy()
 
-            weights[i, 0] = torch.exp(-self.free_energy(mean.unsqueeze(0))).item()
+            hidden_shift = h @ self.weights.t()
+            weights[i, 0] = (
+                h @ self.hidden_bias
+                + ((self.visible_bias / self.sigma_v()) * hidden_shift).sum()
+                + 0.5 * hidden_shift.square().sum()
+            ).item()
 
-        Z = float(np.sum(weights))
-        if Z > 0:
-            weights = weights / Z
+        log_z = np.logaddexp.reduce(weights[:, 0])
+        weights = np.exp(weights - log_z)
+        with np.errstate(over="ignore"):
+            Z = float(np.exp(log_z))
 
         return weights, means, gmm_sigmas, hidden_states, Z
