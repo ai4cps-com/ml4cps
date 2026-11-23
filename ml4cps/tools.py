@@ -3,6 +3,7 @@
 """
 import warnings
 from datetime import datetime
+from itertools import product
 from pathlib import PurePosixPath
 
 import pandas as pd
@@ -13,6 +14,26 @@ try:
 except:
     warnings.warn("Torch not installed")
 import pprint
+
+
+def get_allowed_configurations(n_bits=3, allowed_values=None):
+    """Return all binary configuration tuples allowed by per-variable values.
+
+    ``n_bits`` is a positive integer. ``allowed_values`` provides one sequence
+    of allowed binary values per variable; omitting it permits both 0 and 1.
+    For example, ``get_allowed_configurations(3, [(0,), (0, 1), (1,)])``
+    returns ``((0, 0, 1), (0, 1, 1))``.
+
+    The result is sorted and contains no duplicates. An empty choice for any
+    variable yields an empty tuple. Constraints involving multiple variables
+    must be applied separately.
+    """
+    if not isinstance(n_bits, int) or isinstance(n_bits, bool) or n_bits < 1:
+        raise ValueError("n_bits must be a positive integer")
+    allowed = [(0, 1)] * n_bits if allowed_values is None else allowed_values
+    if len(allowed) != n_bits or any(not set(values) <= {0, 1} for values in allowed):
+        raise ValueError("Provide allowed binary values for each configuration bit")
+    return tuple(sorted(set(product(*(sorted(set(values)) for values in allowed)))))
 
 
 def vec2str(discrete_data):
