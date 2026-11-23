@@ -125,5 +125,168 @@ class ThreeWayTests(unittest.TestCase):
         self.assertEqual(codes.shape, (4, 1, 2))
 
 
+class FactoredThreeWayTests(unittest.TestCase):
+    def setUp(self):
+        torch.manual_seed(27)
+        self.model = ThreeWayBinaryBinaryRBM(2, 3, 2, n_factors=4).double()
+        self.dense = ThreeWayBinaryBinaryRBM(2, 3, 2).double()
+        self.v = torch.tensor([[0., 1.], [1., 0.], [1., 1.]], dtype=torch.float64)
+        self.u = torch.tensor([[1., 0.], [0., 1.], [1., 1.]], dtype=torch.float64)
+        with torch.no_grad():
+            for name in ('weights', 'visible_bias', 'hidden_bias', 'auxiliary_bias'):
+                getattr(self.dense, name).copy_(getattr(self.model, name))
+            self.dense.three_way_weights.copy_(torch.einsum(
+                'if,jf,af->ija', self.model.visible_factors,
+                self.model.hidden_factors, self.model.auxiliary_factors))
+
+    def test_factored_model_matches_equivalent_full_tensor(self):
+        self.assertFalse(hasattr(self.model, 'three_way_weights'))
+        h = torch.tensor([[1., 0., 1.], [0., 1., 0.], [1., 1., 0.]], dtype=torch.float64)
+        torch.testing.assert_close(self.model.effective_weights(self.u), self.dense.effective_weights(self.u))
+        torch.testing.assert_close(self.model.three_way_hidden(self.v, self.u),
+                                   self.dense.three_way_hidden(self.v, self.u))
+        torch.testing.assert_close(self.model.vu2h(self.v, self.u), self.dense.vu2h(self.v, self.u))
+        torch.testing.assert_close(self.model.hu2v(h, self.u), self.dense.hu2v(h, self.u))
+        torch.testing.assert_close(self.model.vh2u(self.v, h), self.dense.vh2u(self.v, h))
+        torch.testing.assert_close(self.model.free_energy(self.v, self.u), self.dense.free_energy(self.v, self.u))
+
+    def test_energy_and_factor_gradients_match_explicit_hidden_enumeration(self):
+        model = self.model
+        hidden = torch.tensor(list(product((0., 1.), repeat=3)), dtype=torch.float64)
+        interaction = ((self.v @ model.visible_factors)[:, None, :]
+                       * (self.u @ model.auxiliary_factors)[:, None, :]
+                       * (hidden @ model.hidden_factors)[None, :, :]).sum(-1)
+        energy = (-self.v @ model.visible_bias[:, None] - hidden @ model.hidden_bias
+                  - (self.u @ model.auxiliary_bias)[:, None]
+                  - self.v @ model.weights @ hidden.T - interaction)
+        exact = -torch.logsumexp(-energy, dim=1)
+        actual = model.free_energy(self.v, self.u)
+        torch.testing.assert_close(actual, exact)
+        parameters = tuple(model.parameters())
+        actual_grad = torch.autograd.grad(actual.sum(), parameters)
+        exact_grad = torch.autograd.grad(exact.sum(), parameters)
+        for left, right in zip(actual_grad, exact_grad):
+            torch.testing.assert_close(left, right)
+            self.assertTrue(torch.isfinite(left).all())
+
+    def test_cd_and_pcd_keep_context_clamped_in_factored_model(self):
+        packed = torch.cat((self.v, self.u), -1)
+        generated = self.model.gibbs_chain(packed, num_gibbs=2)
+        torch.testing.assert_close(generated[:, 2:], self.u)
+        loss = self.model.contrastive_divergence(packed, num_gibbs=2)
+        loss.backward()
+        for factor in (self.model.visible_factors, self.model.hidden_factors, self.model.auxiliary_factors):
+            self.assertIsNotNone(factor.grad)
+            self.assertTrue(torch.isfinite(factor.grad).all())
+        self.model.pcd_loss(packed, num_gibbs=1)
+        changed = torch.cat((self.v, 1 - self.u), -1)
+        self.model.pcd_loss(changed, num_gibbs=1)
+        torch.testing.assert_close(self.model.persistent_visible[:, 2:], 1 - self.u)
+
+    def test_checkpoint_restores_factored_model_without_unused_bias_or_tensor(self):
+        model = ThreeWayBinaryBinaryRBM(2, 3, 2, n_factors=4, auxiliary_bias=False).double()
+        with tempfile.TemporaryDirectory() as folder:
+            filename = Path(folder) / 'factored.pt'
+            model.save(filename)
+            restored = ThreeWayBinaryBinaryRBM.load(filename)
+        self.assertEqual(restored.n_factors, 4)
+        self.assertIsNone(restored.auxiliary_bias)
+        self.assertFalse(hasattr(restored, 'three_way_weights'))
+        self.assertEqual(restored.visible_factors.dtype, torch.float64)
+        torch.testing.assert_close(restored.free_energy(self.v, self.u), model.free_energy(self.v, self.u))
+        for name, parameter in model.named_parameters():
+            torch.testing.assert_close(dict(restored.named_parameters())[name], parameter)
+
+    def test_invalid_factor_counts_and_auxiliary_bias_option(self):
+        for value in (0, -1, True, 1.5):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                ThreeWayBinaryBinaryRBM(2, 3, 2, n_factors=value)
+        with self.assertRaises(ValueError):
+            ThreeWayBinaryBinaryRBM(2, 3, 2, auxiliary_bias=1)
+
+
+
+
+
+class MixedAuxiliaryTests(unittest.TestCase):
+    def test_mixed_free_energy_and_gradients_match_hidden_enumeration(self):
+        hidden = torch.tensor(list(product((0., 1.), repeat=3)), dtype=torch.float64)
+        visible = torch.tensor([[0., 1.], [1., 0.]], dtype=torch.float64)
+        auxiliary = torch.tensor([[0., -1.4], [1., 2.1]], dtype=torch.float64)
+        for factors in (None, 4):
+            with self.subTest(factors=factors):
+                model = ThreeWayBinaryBinaryRBM(2, 3, 2, n_factors=factors,
+                    auxiliary_types=('binary', 'gaussian'), auxiliary_sigma=[1., .7]).double()
+                with torch.no_grad():
+                    model.auxiliary_bias.copy_(torch.tensor([.2, -.3]))
+                tensor = model.three_way_weights if factors is None else torch.einsum(
+                    'if,jf,af->ija', model.visible_factors, model.hidden_factors, model.auxiliary_factors)
+                sigma = model.auxiliary_sigma
+                auxiliary_energy = (-auxiliary[:, 0] * model.auxiliary_bias[0]
+                    + .5 * ((auxiliary[:, 1] - model.auxiliary_bias[1]) / sigma[1]).square())
+                energy = (-visible @ model.visible_bias[:, None] - hidden @ model.hidden_bias
+                    - visible @ model.weights @ hidden.T + auxiliary_energy[:, None]
+                    - torch.einsum('bi,ija,kj,ba->bk', visible, tensor, hidden, auxiliary / sigma))
+                expected = -torch.logsumexp(-energy, dim=1)
+                actual = model.free_energy(visible, auxiliary)
+                torch.testing.assert_close(actual, expected)
+                parameters = tuple(model.parameters())
+                for actual_grad, expected_grad in zip(torch.autograd.grad(actual.sum(), parameters),
+                                                      torch.autograd.grad(expected.sum(), parameters)):
+                    torch.testing.assert_close(actual_grad, expected_grad)
+
+    def test_mixed_auxiliary_conditionals_sample_gaussian_mean_and_variance(self):
+        torch.manual_seed(172)
+        model = ThreeWayBinaryBinaryRBM(1, 1, 2,
+            auxiliary_types=['binary', 'gaussian'], auxiliary_sigma=[1., 2.]).double()
+        with torch.no_grad():
+            model.three_way_weights.copy_(torch.tensor([[[.4, -.6]]]))
+            model.auxiliary_bias.copy_(torch.tensor([.2, .3]))
+        moments = model.vh2u(torch.ones(1, 1), torch.ones(1, 1))
+        expected = torch.tensor([[torch.sigmoid(torch.tensor(.6)).item(), .3 + 2. * -.6]], dtype=torch.float64)
+        torch.testing.assert_close(moments, expected)
+        samples = model.sample_u(moments.expand(40000, -1))
+        self.assertTrue(((samples[:, 0] == 0) | (samples[:, 0] == 1)).all())
+        self.assertAlmostEqual(float(samples[:, 0].mean()), float(moments[0, 0]), delta=.012)
+        self.assertAlmostEqual(float(samples[:, 1].mean()), float(moments[0, 1]), delta=.035)
+        self.assertAlmostEqual(float(samples[:, 1].var()), 4., delta=.12)
+
+    def test_mixed_auxiliary_stays_clamped_and_survives_native_checkpoint(self):
+        model = ThreeWayBinaryBinaryRBM(2, 3, 2, n_factors=3,
+            auxiliary_types=['binary', 'gaussian'], auxiliary_sigma=[1., 2.]).double()
+        packed = torch.tensor([[0., 1., 0., -2.4], [1., 0., 1., 1.3]], dtype=torch.float64)
+        torch.testing.assert_close(model.gibbs_chain(packed, num_gibbs=3)[:, 2:], packed[:, 2:])
+        loss = model.contrastive_divergence(packed, num_gibbs=2)
+        loss.backward()
+        self.assertTrue(all(p.grad is not None and torch.isfinite(p.grad).all() for p in model.parameters()))
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'mixed.pt'
+            model.save(path)
+            restored = ThreeWayBinaryBinaryRBM.load(path)
+        self.assertEqual(restored.auxiliary_types, ('binary', 'gaussian'))
+        torch.testing.assert_close(restored.auxiliary_sigma, model.auxiliary_sigma)
+        torch.testing.assert_close(restored.free_energy(packed), model.free_energy(packed))
+
+    def test_mixed_auxiliary_validation_and_legacy_state_defaults(self):
+        for types, sigma in ((['binary'], 1.), (['binary', 'other'], 1.),
+                             (['binary', 'gaussian'], [2., 1.]),
+                             (['binary', 'gaussian'], [1., 0.]),
+                             (['binary', 'gaussian'], float('nan'))):
+            with self.subTest(types=types, sigma=sigma), self.assertRaises(ValueError):
+                ThreeWayBinaryBinaryRBM(2, 3, 2, auxiliary_types=types, auxiliary_sigma=sigma)
+        model = ThreeWayBinaryBinaryRBM(2, 3, 2,
+            auxiliary_types=['binary', 'gaussian'], auxiliary_sigma=2.)
+        torch.testing.assert_close(model.auxiliary_sigma, torch.tensor([1., 2.]))
+        for values in ([[.3, 1.]], [[1., float('inf')]], [[0., float('nan')]]):
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                model.effective_weights(values)
+        binary = ThreeWayBinaryBinaryRBM(2, 3, 2)
+        legacy = binary.state_dict()
+        del legacy['_gaussian_auxiliary'], legacy['auxiliary_sigma']
+        model.load_state_dict(legacy)
+        self.assertEqual(model.auxiliary_types, ('binary', 'binary'))
+        torch.testing.assert_close(model.auxiliary_sigma, torch.ones(2))
+
+
 if __name__ == '__main__':
     unittest.main()
