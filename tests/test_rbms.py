@@ -1,12 +1,10 @@
-import torch
-from denta.rbms.bb import BinaryBinaryRBM
-from denta.rbms.gb import GaussianBinaryRBM
-from denta.rbms.training import train_rbm
 from __future__ import annotations
-from pathlib import Path
+
 import torch
-from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+
+from ml4cps.debta.rbms.bb import BinaryBinaryRBM
+from ml4cps.debta.rbms.gb import GaussianBinaryRBM
+from ml4cps.debta.rbms.training import train_rbm
 
 
 def test_bbrbm(
